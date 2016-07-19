@@ -56,7 +56,7 @@ end
 def day_and_month(year, dayofyr) do
   lmonth = cond do
     rem(year, 4) === 0 -> [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    true -> [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    true               -> [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
   end
   [head | tail] = lmonth
 
