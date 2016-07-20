@@ -39,43 +39,65 @@ defmodule Twoline_To_Satrec do
     satrec = %{satrec | alta: satrec.a * (1.0 + satrec.ecco) - 1.0}
     satrec = %{satrec | altp: satrec.a * (1.0 - satrec.ecco) - 1.0}
 
-    # Stopped at line 3177 in satellite.js
     year = epoch_year(satrec.epochyr)
+    mdhms_result = days2mdhms(year, satrec.epochdays)
+    mon = mdhms_result.mon
+    day = mdhms_result.day
+    hr = mdhms_result.hr
+    minute = mdhms_result.minute
+    sec = mdhms_result.second
 
+    satrec = %{satrec | jdsatepoch: jday(year, mon, day, hr, minute, sec)}
+
+    # Stopped at line 128 in twoline2satrec.js
   end
 
-def epoch_year(year) when year < 57,  do: 2000 + year
-def epoch_year(year),                 do: 1990 + year
+  def epoch_year(year) when year < 57,  do: 2000 + year
+  def epoch_year(year),                 do: 1990 + year
 
-def days2mdhms(year, days) do
-  dayofyr = Float.floor(days) |> trunc |> IO.inspect
-  {month, day} = day_and_month(year, dayofyr)
+  def days2mdhms(year, days) do
+    dayofyr = Float.floor(days) |> trunc |> IO.inspect
+    {dayTemp, month} = day_and_month(year, dayofyr)
+    day = dayofyr - dayTemp
+    temp = (days - dayofyr) * 24.0
+    hr = Float.floor(temp) |> trunc
+    temp = (temp - hr) * 60.0
+    minute = Float.floor(temp) |> trunc
+    sec = (temp - minute) * 60.0
 
-end
+    mdhms = %{
+      mon: month,
+      day: day,
+      hr: hr,
+      minute: minute,
+      second: sec
+    }
+  end
 
-def day_and_month(year, dayofyr) do
-  #lmonth = cond do
-  #  rem(year, 4) === 0 -> [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-  #  true               -> [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-  #end
+  def day_and_month(year, dayofyr) do
+    #lmonth = cond do
+    #  rem(year, 4) === 0 -> [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    #  true               -> [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    #end
 
-  lmonth = [31] ++ [days_in_februrary(year)] ++ [31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    lmonth = [31] ++ [days_in_februrary(year)] ++ [31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
-  [head | tail] = lmonth
-  _day_and_month(dayofyr, head, tail)
+    [head | tail] = lmonth
+    _day_and_month(dayofyr, head, tail)
+  end
 
-end
+  def days_in_februrary(year) when rem(year, 4) === 0 , do: 29
+  def days_in_februrary(_year),                         do: 28
 
-def days_in_februrary(year) when rem(year, 4) === 0 , do: 29
-def days_in_februrary(_year),                         do: 28
+  defp _day_and_month(dayofyr, daysToAdd, [days_this_month | remaining_months])
+      when (dayofyr > daysToAdd + days_this_month),
+      do: _day_and_month(dayofyr, daysToAdd + days_this_month, remaining_months)
 
-defp _day_and_month(dayofyr, daysToAdd, [days_this_month | remaining_months])
-    when (dayofyr > daysToAdd + days_this_month),
-    do: _day_and_month(dayofyr, daysToAdd + days_this_month, remaining_months)
+  defp _day_and_month(_dayofyr, daysToAdd, []),       do: {daysToAdd, 12}
+  defp _day_and_month(_dayofyr, daysToAdd, dayList),  do: {daysToAdd, 12 - Enum.count(dayList) + 1}
 
-defp _day_and_month(_dayofyr, daysToAdd, []),       do: {daysToAdd, 12}
-defp _day_and_month(_dayofyr, daysToAdd, dayList),  do: {daysToAdd, 12 - Enum.count(dayList) + 1}
-
-
+  defp jday(year, mon, day, hr, minute, sec) do
+    367.0 * year - Float.floor((7 * (year + Float.floor((mon + 9) / 12.0))) * 0.25) + Float.floor(275 * mon / 9.0) + day + 1721013.5 + ((sec / 60.0 + minute) / 60.0 + hr) / 24.0 #  ut in days
+  end
 
 end

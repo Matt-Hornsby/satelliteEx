@@ -13,5 +13,6 @@ defmodule Satrec do
             no: nil,
             a: nil,
             alta: nil,
-            altp: nil
+            altp: nil,
+            jdsatepoch: nil
 end
