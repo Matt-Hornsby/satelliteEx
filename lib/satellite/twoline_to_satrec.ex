@@ -11,7 +11,7 @@ defmodule Twoline_To_Satrec do
     tle2 = Satellite.extract_tle2(tle_line_2)
 
     satrec = %Satrec{}
-    satrec = %{satrec | satname: tle1.satellite_number}
+    satrec = %{satrec | satnum: tle1.satellite_number}
     satrec = %{satrec | epochyr: tle1.epoch_year}
     satrec = %{satrec | epochdays: tle1.epoch}
     satrec = %{satrec | ndot: tle1.first_deriviative}
@@ -49,20 +49,35 @@ defmodule Twoline_To_Satrec do
 
     satrec = %{satrec | jdsatepoch: jday(year, mon, day, hr, minute, sec)}
 
-    # Stopped at line 128 in twoline2satrec.js
+    sgp4_init_parameters =
+      %{
+        opsmode: @opsmode,
+        satn: satrec.satnum,
+        epoch: (satrec.jdsatepoch - 2433281.5),
+        xbstar: satrec.bstar,
+        xecco: satrec.ecco,
+        xargpo: satrec.argpo,
+        xinclo: satrec.inclo,
+        xmo: satrec.mo,
+        xno: satrec.no,
+        xnodeo: satrec.nodeo
+      }
+
+      sgp4init(satrec, sgp4_init_parameters)
+
   end
 
   def epoch_year(year) when year < 57,  do: 2000 + year
   def epoch_year(year),                 do: 1990 + year
 
   def days2mdhms(year, days) do
-    dayofyr = Float.floor(days) |> trunc |> IO.inspect
+    dayofyr = days |> Float.floor |> trunc
     {dayTemp, month} = day_and_month(year, dayofyr)
     day = dayofyr - dayTemp
     temp = (days - dayofyr) * 24.0
-    hr = Float.floor(temp) |> trunc
+    hr = temp |> Float.floor |> trunc
     temp = (temp - hr) * 60.0
-    minute = Float.floor(temp) |> trunc
+    minute = temp |> Float.floor |> trunc
     sec = (temp - minute) * 60.0
 
     mdhms = %{
@@ -97,7 +112,75 @@ defmodule Twoline_To_Satrec do
   defp _day_and_month(_dayofyr, daysToAdd, dayList),  do: {daysToAdd, 12 - Enum.count(dayList) + 1}
 
   defp jday(year, mon, day, hr, minute, sec) do
-    367.0 * year - Float.floor((7 * (year + Float.floor((mon + 9) / 12.0))) * 0.25) + Float.floor(275 * mon / 9.0) + day + 1721013.5 + ((sec / 60.0 + minute) / 60.0 + hr) / 24.0 #  ut in days
+    367.0 * year -
+    Float.floor((7 * (year + Float.floor((mon + 9) / 12.0))) * 0.25) +
+    Float.floor(275 * mon / 9.0) +
+    day + 1721013.5 +
+    ((sec / 60.0 + minute) / 60.0 + hr) / 24.0 #  ut in days
+  end
+
+  defp sgp4init(satrec, init_parameters) do
+
+    opsmode = init_parameters.opsmode
+    satn    = init_parameters.satn
+    epoch   = init_parameters.epoch
+
+    xbstar  = init_parameters.xbstar
+    xecco   = init_parameters.xecco
+    xargpo  = init_parameters.xargpo
+
+    xinclo  = init_parameters.xinclo
+    xmo     = init_parameters.xmo
+    xno     = init_parameters.xno
+
+    xnodeo  = init_parameters.xnodeo
+
+    #------------------------ initialization ---------------------
+    # sgp4fix divisor for divide by zero check on inclination
+    # the old check used 1.0 + Math.cos(pi-1.0e-9), but then compared it to
+    # 1.5 e-12, so the threshold was changed to 1.5e-12 for consistency
+
+    temp4 = 1.5e-12
+
+    # sgp4fix - note the following variables are also passed directly via satrec.
+    # it is possible to streamline the sgp4init call by deleting the "x"
+    # variables, but the user would need to set the satrec.* values first. we
+    # include the additional assignments in case twoline2rv is not used.
+
+    satrec = %{satrec | bstar: xbstar}
+    satrec = %{satrec | ecco: xecco}
+    satrec = %{satrec | argpo: xargpo}
+    satrec = %{satrec | inclo: xinclo}
+    satrec = %{satrec | mo: xmo}
+    satrec = %{satrec | no: xno}
+    satrec = %{satrec | nodeo: xnodeo}
+
+    # sgp4fix add opsmode\
+    satrec = %{satrec | operationmode: opsmode}
+
+    # ------------------------ earth constants -----------------------
+    # sgp4fix identify constants and allow alternate values
+
+    ss = 78.0 / Constants.earth_radius + 1.0
+    qzms2ttemp = (120.0 - 78.0) / Constants.earth_radius
+    qzms2t = qzms2ttemp * qzms2ttemp * qzms2ttemp * qzms2ttemp
+    x2o3 = 2.0 / 3.0
+
+    satrec = %{satrec | init: 'y'}
+    satrec = %{satrec | t: 0.0}
+
+    initlParameters = %{
+            satn: satn,
+            ecco: satrec.ecco,
+            epoch: epoch,
+            inclo: satrec.inclo,
+            no: satrec.no,
+            method: satrec.method,
+            opsmode: satrec.operationmode
+        }
+
+      # Stopped at line 217 in sgp4init.js
+
   end
 
 end
