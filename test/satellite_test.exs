@@ -17,10 +17,39 @@ defmodule SatelliteTest do
     }
   end
 
-  @tag :skip
   test "initialize", state do
     sat = Satellite.create()
     assert sat[:twoline_to_satrec].(state[:tle_line_1], state[:tle_line_2])
+  end
+
+  test "propagate", state do
+    {:ok, satrec} = Twoline_To_Satrec.twoline_to_satrec(state[:tle_line_1], state[:tle_line_2])
+    positionAndVelocity = Twoline_To_Satrec.propagate(satrec, 2017, 1, 1, 1, 1, 1)
+    positionEci = positionAndVelocity.position
+    velocityEci = positionAndVelocity.velocity
+    tolerance = 0.0000001
+    assert_in_delta positionEci.x, -1598.9224945568021, tolerance
+    assert_in_delta positionEci.y, -5437.566343316776, tolerance
+    assert_in_delta positionEci.z, -3473.0617812839414, tolerance
+
+    assert_in_delta velocityEci.x, 6.1867840719957465, tolerance
+    assert_in_delta velocityEci.y, 1.067765018113105, tolerance
+    assert_in_delta velocityEci.z, -4.5315790425142675, tolerance
+
+    deg2rad = :math.pi/180
+    observerGd = %{
+       longitude: -122.0308 * deg2rad,
+       latitude: 36.9613422 * deg2rad,
+       height: 0.370}
+
+    gmst = Twoline_To_Satrec.gstime(Twoline_To_Satrec.jday(2017, 1,1,1,1,1))
+    positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
+    observerEcf = CoordinateTransforms.geodetic_to_ecf(observerGd)
+    #positionGd = satellite.eciToGeodetic(positionEci, gmst)
+    lookAngles = CoordinateTransforms.ecfToLookAngles(observerGd, positionEcf)
+    assert_in_delta lookAngles.azimuth, 4.3466709598451425, tolerance
+    assert_in_delta lookAngles.elevation, -0.9994775790843395, tolerance
+    assert_in_delta lookAngles.rangeSat, 11036.184604572572, tolerance
   end
 
   test "parse fortran exponent" do

@@ -138,7 +138,7 @@ defmodule Satellite do
       :gstime_from_jday => not_implemented,
       :gstime_from_date => not_implemented,
       :propagate => not_implemented,
-      :twoline_to_satrec => fn(tle1, tle2) -> not_implemented end,
+      :twoline_to_satrec => fn(tle1, tle2) -> Twoline_To_Satrec.twoline_to_satrec(tle1,tle2) end,
       :sgp4 => not_implemented
     }
   end

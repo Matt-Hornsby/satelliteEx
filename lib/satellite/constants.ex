@@ -12,6 +12,7 @@ defmodule Constants do
   def deg2rad, do: pi() / 180.0
   def two_pi, do: 2 * pi()
   def j3oj2, do: j3 / j2
+  def minutes_per_day, do: 1440.0
 
   def all do
     pi = pi()
@@ -24,7 +25,7 @@ defmodule Constants do
       :two_pi => two_pi,
       :deg2rad => deg2rad,
       :rad2deg => 180 / pi,
-      :minutes_per_day => 1440.0,
+      :minutes_per_day => minutes_per_day,
       :mu => mu,
       :earth_radius => earth_radius,
       :xke => xke,
