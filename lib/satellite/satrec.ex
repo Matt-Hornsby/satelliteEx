@@ -47,5 +47,6 @@ defmodule Satrec do
             xli: 0.0, xni: 0.0,
             init: 'y',
             t: 0.0,
-            operationmode: nil
+            operationmode: nil,
+            error: 0
 end
