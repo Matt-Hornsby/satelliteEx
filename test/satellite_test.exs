@@ -1,12 +1,18 @@
 defmodule SatelliteTest do
   use ExUnit.Case
+  import Satellite.DatetimeConversions
   doctest Satellite
 
   setup_all do
     tle_line_1 = "1 25544U 98067A   13149.87225694  .00009369  00000-0  16828-3 0  9031"
     tle_line_2 = "2 25544 051.6485 199.1576 0010128 012.7275 352.5669 15.50581403831869"
-    tle1 = Satellite.extract_tle1(tle_line_1)
-    tle2 = Satellite.extract_tle2(tle_line_2)
+
+    #AO-07
+    #tle_line_1 = "1 07530U 74089B   16195.86511907 -.00000024  00000-0  12706-3 0  9998"
+    #tle_line_2 = "2 07530 101.5762 165.9737 0011522 259.3493 129.4719 12.53622068906466"
+
+    tle1 = Twoline_To_Satrec.extract_tle1(tle_line_1)
+    tle2 = Twoline_To_Satrec.extract_tle2(tle_line_2)
 
     {
       :ok,
@@ -17,16 +23,25 @@ defmodule SatelliteTest do
     }
   end
 
-  test "initialize", state do
-    sat = Satellite.create()
-    assert sat[:twoline_to_satrec].(state[:tle_line_1], state[:tle_line_2])
-  end
-
   test "propagate", state do
     {:ok, satrec} = Twoline_To_Satrec.twoline_to_satrec(state[:tle_line_1], state[:tle_line_2])
-    positionAndVelocity = Twoline_To_Satrec.propagate(satrec, 2017, 1, 1, 1, 1, 1)
+    positionAndVelocity = Satellite.SGP4.propagate(satrec, 2017, 1, 1, 1, 1, 1)
     positionEci = positionAndVelocity.position
     velocityEci = positionAndVelocity.velocity
+
+
+    deg2rad = :math.pi/180
+    observerGd = %{
+       longitude: -122.0308 * deg2rad,
+       latitude: 36.9613422 * deg2rad,
+       height: 0.370}
+
+    gmst = gstime(jday(2017,1,1,1,1,1))
+    positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
+    observerEcf = CoordinateTransforms.geodetic_to_ecf(observerGd)
+    #positionGd = satellite.eciToGeodetic(positionEci, gmst)
+    lookAngles = CoordinateTransforms.ecfToLookAngles(observerGd, positionEcf)
+
     tolerance = 0.0000001
     assert_in_delta positionEci.x, -1598.9224945568021, tolerance
     assert_in_delta positionEci.y, -5437.566343316776, tolerance
@@ -36,24 +51,47 @@ defmodule SatelliteTest do
     assert_in_delta velocityEci.y, 1.067765018113105, tolerance
     assert_in_delta velocityEci.z, -4.5315790425142675, tolerance
 
-    deg2rad = :math.pi/180
-    observerGd = %{
-       longitude: -122.0308 * deg2rad,
-       latitude: 36.9613422 * deg2rad,
-       height: 0.370}
-
-    gmst = Twoline_To_Satrec.gstime(Twoline_To_Satrec.jday(2017, 1,1,1,1,1))
-    positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
-    observerEcf = CoordinateTransforms.geodetic_to_ecf(observerGd)
-    #positionGd = satellite.eciToGeodetic(positionEci, gmst)
-    lookAngles = CoordinateTransforms.ecfToLookAngles(observerGd, positionEcf)
     assert_in_delta lookAngles.azimuth, 4.3466709598451425, tolerance
     assert_in_delta lookAngles.elevation, -0.9994775790843395, tolerance
     assert_in_delta lookAngles.rangeSat, 11036.184604572572, tolerance
   end
 
+  test "gstime returns correct value" do
+    assert gstime(jday(2017,1,1,1,1,1)) === 2.026918610688881
+  end
+
+  test "initl returns correct response" do
+    # this is a pinning test to make sure i don't screw things up during refactoring
+    initlParameters = %{
+            satn: "25544",
+            ecco: 0.0010128,
+            epoch: 23160.87225694023,
+            inclo: 0.9014363787162912,
+            no: 0.0676568770063577,
+            method: 'n',
+            opsmode: 'i'
+        }
+    initlResult = Satellite.Initl.initl(initlParameters)
+    assert initlResult.ainv === 0.938835647692083
+    assert initlResult.ao === 1.0651491583838724
+    assert initlResult.con41 === 0.15500182798076345
+    assert initlResult.con42 === -0.9250030466346058
+    assert initlResult.cosio === 0.6204841733089742
+    assert initlResult.cosio2 === 0.38500060932692115
+    assert initlResult.eccsq === 1.02576384e-6
+    assert initlResult.gsto === 3.5178017006182927
+    assert initlResult.method === 'n'
+    assert initlResult.no === 0.0676493708416377
+    assert initlResult.omeosq === 0.99999897423616
+    assert initlResult.posq === 1.1345404020612515
+    assert initlResult.rp === 1.064070375316261
+    assert initlResult.rteosq === 0.9999994871179485
+    assert initlResult.sinio === 0.7842189685751544
+
+  end
+
   test "parse fortran exponent" do
-    assert Satellite.from_fortran_float("12345-3") == 0.12345e-3
+    assert Twoline_To_Satrec.from_fortran_float("12345-3") == 0.12345e-3
   end
 
   test "parsed tle1 should return line 1", state do
