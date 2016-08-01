@@ -1,24 +1,9 @@
 # Satellite
 
-**TODO: Add description**
+This is a satellite prediction library, which will pull TLE records from celestrak (currently.. space-track.org to come) and output satellite pass times for any given time and location.
 
-## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed as:
-
-  1. Add `satellite` to your list of dependencies in `mix.exs`:
-
-    ```elixir
-    def deps do
-      [{:satellite, "~> 0.1.0"}]
-    end
-    ```
-
-  2. Ensure `satellite` is started before your application:
-
-    ```elixir
-    def application do
-      [applications: [:satellite]]
-    end
-    ```
-
+## Example
+```
+iex> Satellite.save_tle_from_celestrak("Visual")
+iex> Satellite.find_first_pass_for({{2016, 08, 1}, {4,0,0}}, Satellite.seattle_observer, Satellite.iss_satrec)
+```

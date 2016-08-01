@@ -39,7 +39,7 @@ defmodule Satellite.SGP4Init do
     satrec = %{satrec | no: xno}
     satrec = %{satrec | nodeo: xnodeo}
 
-    # sgp4fix add opsmode\
+    # sgp4fix add opsmode
     satrec = %{satrec | operationmode: opsmode}
 
     # ------------------------ earth constants -----------------------
@@ -83,10 +83,14 @@ defmodule Satellite.SGP4Init do
       satrec = %{satrec | error: 0}
 
       if (omeosq >= 0.0 || satrec.no >= 0.0) do
-        satrec = %{satrec | isimp: 0}
-        if (rp < 220.0 / Constants.earth_radius + 1.0) do
-          satrec = %{satrec | isimp: 1}
+
+        isimp = cond do
+          (rp < 220.0 / Constants.earth_radius + 1.0) -> 1
+          true -> 0
         end
+
+        satrec = %{satrec | isimp: isimp}
+
         sfour = ss
         qzms24 = qzms2t
         perige = (rp - 1.0) * Constants.earth_radius
@@ -118,9 +122,10 @@ defmodule Satellite.SGP4Init do
                     (4.0 + etasq)) + 0.375 * Constants.j2 * tsi / psisq * satrec.con41 *
                     (8.0 + 3.0 * etasq * (8.0 + etasq)))
         satrec = %{satrec | cc1: satrec.bstar * cc2}
-        cc3 = 0.0
-        if (satrec.ecco > 1.0e-4) do
-          cc3 = -2.0 * coef * tsi * Constants.j3oj2 * satrec.no * sinio / satrec.ecco
+
+        cc3 = cond do
+          (satrec.ecco > 1.0e-4) -> -2.0 * coef * tsi * Constants.j3oj2 * satrec.no * sinio / satrec.ecco
+          true -> 0.0
         end
 
         satrec = %{satrec | x1mth2: 1.0 - cosio2}
@@ -147,16 +152,22 @@ defmodule Satellite.SGP4Init do
         xpidot =  satrec.argpdot+ satrec.nodedot
         satrec = %{satrec | omgcof: satrec.bstar * cc3 * :math.cos(satrec.argpo)}
         satrec = %{satrec | xmcof: 0.0}
-        if (satrec.ecco > 1.0e-4) do
-          satrec = %{satrec | xmcof: -x2o3 * coef * satrec.bstar / eeta}
+
+        xmcof = cond do
+          (satrec.ecco > 1.0e-4) -> -x2o3 * coef * satrec.bstar / eeta
+          true -> satrec.xmcof
         end
+
+        satrec = %{satrec | xmcof: xmcof}
         satrec = %{satrec | nodecf: 3.5 * omeosq * xhdot1 * satrec.cc1}
         satrec = %{satrec | t2cof: 1.5 * satrec.cc1}
-        if (abs(cosio+1.0) > 1.5e-12) do
-          satrec = %{satrec | xlcof: -0.25 * Constants.j3oj2 * sinio * (3.0 + 5.0 * cosio) / (1.0 + cosio)}
-        else
-          satrec = %{satrec | xlcof: -0.25 * Constants.j3oj2 * sinio * (3.0 + 5.0 * cosio) / temp4}
+
+        xlcof = cond do
+          (abs(cosio+1.0) > 1.5e-12) -> -0.25 * Constants.j3oj2 * sinio * (3.0 + 5.0 * cosio) / (1.0 + cosio)
+          true -> -0.25 * Constants.j3oj2 * sinio * (3.0 + 5.0 * cosio) / temp4
         end
+        satrec = %{satrec | xlcof: xlcof}
+
 
         satrec = %{satrec | aycof: -0.5 * Constants.j3oj2 * sinio}
         delmotemp = 1.0 + satrec.eta * :math.cos(satrec.mo)

@@ -3,7 +3,7 @@ defmodule Satellite.SGP4 do
   import Satellite.DatetimeConversions
 
   def sgp4(satrec, tsince) do
-    temp4 = 1.5e-12
+    #temp4 = 1.5e-12
     vkmpersec = Constants.earth_radius * Constants.xke / 60.0
 
     satrec = %{satrec | t: tsince}
@@ -66,8 +66,8 @@ defmodule Satellite.SGP4 do
 
     mm = mm + satrec.no * templ
     xlm = mm + argpm + nodem
-    emsq = em * em
-    temp = 1.0 - emsq
+    #emsq = em * em
+    #temp = 1.0 - emsq
 
     nodem = mod(nodem, Constants.two_pi)
     argpm = mod(argpm, Constants.two_pi)
@@ -137,11 +137,13 @@ defmodule Satellite.SGP4 do
     temp2 = temp1 * temp
 
     #  -------------- update for short period periodics ------------
-    if (satrec.method === 'd') do
+    satrec = if (satrec.method === 'd') do
         cosisq = cosip * cosip
         satrec = %{satrec | con41: 3.0 * cosisq - 1.0}
         satrec = %{satrec | x1mth2: 1.0 - cosisq}
         satrec = %{satrec | x7thm1: 7.0 * cosisq - 1.0}
+      else
+        satrec
     end
 
     mrt = rl * (1.0 - 1.5 * temp2 * betal * satrec.con41) + 0.5 * temp1 * satrec.x1mth2 * cos2u
@@ -189,7 +191,7 @@ defmodule Satellite.SGP4 do
     %{satrec: satrec, position: r, velocity: v}
   end
 
-  defp iterate_kepler(tem5, ktr, eo1, axnl, aynl, u, sineo1, coseo1) when abs(tem5) > 1.0e-12 and ktr <= 10 do
+  defp iterate_kepler(tem5, ktr, eo1, axnl, aynl, u, _sineo1, _coseo1) when abs(tem5) > 1.0e-12 and ktr <= 10 do
     sineo1 = :math.sin(eo1)
     coseo1 = :math.cos(eo1)
     tem5 = 1.0 - coseo1 * axnl - sineo1 * aynl
@@ -208,6 +210,8 @@ defmodule Satellite.SGP4 do
   defp iterate_kepler(_tem5, _ktr, _eo1, _axnl, _aynl, _u, sineo1, coseo1), do: {sineo1, coseo1}
 
   def propagate(satrec, year, month, day, hour, minute, second) do
+    #TODO: THIS NEEDS TO BE UTC TIME!!!
+
     #Return a position and velocity vector for a given date and time.
     j = jday(year, month, day, hour, minute, second)
     m = (j - satrec.jdsatepoch) * Constants.minutes_per_day
