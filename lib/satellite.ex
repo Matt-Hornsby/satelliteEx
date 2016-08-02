@@ -1,5 +1,6 @@
 defmodule Satellite do
   import Satellite.DatetimeConversions
+  require Logger
 
   def seattle_observer do
     observerGd = %{
@@ -10,7 +11,7 @@ defmodule Satellite do
 
   def iss_satrec do
     satellites = parse_local_tle("Visual")
-    iss = Satellite.parse_local_tle("Visual")
+    iss = satellites
          |> Enum.filter(&(&1.satellite_name == "ISS (ZARYA)"))
          |> Enum.at(0)
     iss.satrec
@@ -34,6 +35,7 @@ defmodule Satellite do
 
   def parse_tle_stream(tle_stream) do
     tle_stream |> Stream.chunk(3) |> Enum.map(&parse_satellite/1) |> Enum.map(&to_satrec/1)
+    #Logger.info "Done parsing TLE stream"
   end
 
   def parse_satellite(tle_lines) do
@@ -59,67 +61,67 @@ defmodule Satellite do
                           ) do
 
     first_prediction = predict_for(start_date, observerGd, satellite_record)
-    start_of_pass = first_positive_elevation(start_date, observerGd, satellite_record, first_prediction.elevation_in_degrees)
-    end_of_pass = last_positive_elevation(start_of_pass.datetime, observerGd, satellite_record, 0.0)
+    start_of_pass = first_positive_elevation(start_date, observerGd, satellite_record, first_prediction.elevation_in_degrees, first_prediction.azimuth_in_degrees)
+    end_of_pass = last_positive_elevation(start_of_pass.datetime, observerGd, satellite_record, 0.0, 0.0)
 
     %{start_time: start_of_pass, end_time: end_of_pass}
   end
 
-  def first_positive_elevation(start_date, observerGd, satellite_record, elevation) when elevation <= 0.0 do
+  def first_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) when elevation <= 0.0 do
     #local_date = :calendar.universal_time_to_local_time(start_date)
     #{{yy, mm, dd},{h, m, s}} = local_date
     #IO.puts "#{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation}"
 
 
     # increment coarsly
-    new_start_date = increment_date(start_date, 1000)
+    new_start_date = increment_date(start_date, 60)
     prediction = predict_for(new_start_date, observerGd, satellite_record)
-    first_positive_elevation(new_start_date, observerGd, prediction, prediction.elevation_in_degrees)
+    first_positive_elevation(new_start_date, observerGd, satellite_record, prediction.elevation_in_degrees, prediction.azimuth_in_degrees)
   end
 
-  def first_positive_elevation(start_date, observerGd, satellite_record, elevation) do
+  def first_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) do
     #local_date = :calendar.universal_time_to_local_time(start_date)
     #{{yy, mm, dd},{h, m, s}} = local_date
     #IO.puts "*** #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation} ***"
 
     # now back off finely
     #IO.puts ("Now backing off...")
-    decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation)
+    decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation, azimuth)
   end
 
-  def decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation) when elevation > 0.0 do
+  def decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation, azimuth) when elevation > 0.0 do
     #local_date = :calendar.universal_time_to_local_time(start_date)
     #{{yy, mm, dd},{h, m, s}} = local_date
     #IO.puts "#{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation}"
 
-    new_start_date = increment_date(start_date, -10)
+    new_start_date = increment_date(start_date, -1)
     prediction = predict_for(new_start_date, observerGd, satellite_record)
-    decrement_to_lowest_elevation(new_start_date, observerGd, prediction, prediction.elevation_in_degrees)
+    decrement_to_lowest_elevation(new_start_date, observerGd,  satellite_record, prediction.elevation_in_degrees, prediction.azimuth_in_degrees)
   end
 
-  def decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation) do
+  def decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation, azimuth) do
     local_date = :calendar.universal_time_to_local_time(start_date)
     {{yy, mm, dd},{h, m, s}} = local_date
     IO.puts "*** START TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation} ***"
-    %{datetime: start_date, elevation: elevation, azimuth: satellite_record.azimuth_in_degrees}
+    %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end
 
-  def last_positive_elevation(start_date, observerGd, satellite_record, elevation) when elevation >= 0.0 do
+  def last_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) when elevation >= 0.0 do
     #local_date = :calendar.universal_time_to_local_time(start_date)
     #{{yy, mm, dd},{h, m, s}} = local_date
     #IO.puts "#{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation}"
     # Increment until satellite goes below horizon
-    new_start_date = increment_date(start_date, +10)
+    new_start_date = increment_date(start_date, 1)
     prediction = predict_for(new_start_date, observerGd, satellite_record)
-    last_positive_elevation(new_start_date, observerGd, prediction, prediction.elevation_in_degrees)
+    last_positive_elevation(new_start_date, observerGd, satellite_record, prediction.elevation_in_degrees, prediction.azimuth_in_degrees)
   end
 
-  def last_positive_elevation(start_date, observerGd, satellite_record, elevation) do
+  def last_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) do
     # End case - we are now at a negative elevation so return the datetime in local time
     local_date = :calendar.universal_time_to_local_time(start_date)
     {{yy, mm, dd},{h, m, s}} = local_date
     IO.puts "*** END TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation} ***"
-    %{datetime: start_date, elevation: elevation, azimuth: satellite_record.azimuth_in_degrees}
+    %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end
 
   def increment_date(date, seconds) do
@@ -132,7 +134,6 @@ defmodule Satellite do
     now_secs = :calendar.datetime_to_gregorian_seconds(now)
     new_secs = now_secs + (3600 * 13) + (60 * 30)
     new_dt = :calendar.gregorian_seconds_to_datetime(new_secs) |> :calendar.universal_time_to_local_time
-
     predict_for(new_dt, seattle_observer, iss_satrec)
    end
 
@@ -140,14 +141,10 @@ defmodule Satellite do
                   %{longitude: _, latitude: _, height: _} = observerGd,
                   satellite_record) do
 
-    satellites = parse_local_tle("Visual")
-    iss = Satellite.parse_local_tle("Visual") |> Enum.filter(&(&1.satellite_name == "ISS (ZARYA)")) |> Enum.at(0)
     gmst = gstime(jday(year,month,day,hour,min,sec))
-
-    positionAndVelocity = Satellite.SGP4.propagate(iss.satrec,year,month,day,hour,min,sec)
+    positionAndVelocity = Satellite.SGP4.propagate(satellite_record,year,month,day,hour,min,sec)
     positionEci = positionAndVelocity.position
     velocityEci = positionAndVelocity.velocity
-
     positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
     lookAngles = CoordinateTransforms.ecfToLookAngles(observerGd, positionEcf)
     %{
@@ -155,7 +152,6 @@ defmodule Satellite do
       azimuth_in_degrees: lookAngles.azimuth * Constants.rad2deg,
       range: lookAngles.rangeSat
     }
-    #pass = nextPass(satrec, observerGd, now)
   end
 end
 
