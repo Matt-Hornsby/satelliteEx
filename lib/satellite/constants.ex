@@ -14,4 +14,5 @@ defmodule Constants do
   def two_pi, do: 2 * pi()
   def j3oj2, do: j3 / j2
   def minutes_per_day, do: 1440.0
+  def astronomical_unit, do: 149597892000
 end

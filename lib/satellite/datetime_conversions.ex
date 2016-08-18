@@ -1,6 +1,13 @@
 defmodule Satellite.DatetimeConversions do
   import Satellite.Math
 
+  @doc """
+  Converts a gregorian date to julian date
+  ## Examples
+
+        iex> Satellite.DatetimeConversions.jday(2016, 8, 6, 17, 35, 12)
+        2457607.2327777776
+  """
   def jday(year, mon, day, hr, minute, sec) do
     367.0 * year -
       Float.floor((7 * (year + Float.floor((mon + 9) / 12.0))) * 0.25) +
@@ -8,6 +15,14 @@ defmodule Satellite.DatetimeConversions do
       / 24.0 #  ut in days
   end
 
+  @doc """
+  Converts a julian date to greenwich sidereal angle (GST)
+  ## Examples
+
+        iex> jd = Satellite.DatetimeConversions.jday(2016, 8, 6, 17, 35, 12)
+        iex> Satellite.DatetimeConversions.gstime(jd)
+        3.8307254407191067
+  """
   def gstime(jdut1) do
     tut1 = (jdut1 - 2451545.0) / 36525.0
     # 24110.54841 + 8640184.812866 * T + 0.093104 * T^2 - 0.0000062 * T^3

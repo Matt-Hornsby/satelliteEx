@@ -1,5 +1,7 @@
 defmodule Satellite do
   import Satellite.DatetimeConversions
+  import Sun.SunlightCalculations
+  import Sun.SunPosition
   require Logger
 
   def seattle_observer do
@@ -22,23 +24,24 @@ defmodule Satellite do
     File.write!("#{tle_name}.txt", body)
   end
 
-  def stream_tle_from_celestrak(tle_name) do
+  defp stream_tle_from_celestrak(tle_name) do
     Application.ensure_all_started :inets
     {:ok, resp} = :httpc.request(:get, {'http://www.celestrak.com/NORAD/elements/#{tle_name}.txt', []}, [], [body_format: :binary])
     {{_, 200, 'OK'}, _headers, body} = resp
+    Logger.info "#{String.length(body)} bytes read."
     body
   end
 
-  def parse_local_tle(tle_name) do
+  defp parse_local_tle(tle_name) do
     File.stream!("#{tle_name}.txt") |> parse_tle_stream
   end
 
-  def parse_tle_stream(tle_stream) do
+  defp parse_tle_stream(tle_stream) do
     tle_stream |> Stream.chunk(3) |> Enum.map(&parse_satellite/1) |> Enum.map(&to_satrec/1)
     #Logger.info "Done parsing TLE stream"
   end
 
-  def parse_satellite(tle_lines) do
+  defp parse_satellite(tle_lines) do
     [satellite_name | tail] = tle_lines   # line 1 - satellite name
     [tle_line_1 | tail] = tail            # line 2 - TLE line 1
     [tle_line_2 | []] = tail              # line 3 - TLE line 2
@@ -50,9 +53,42 @@ defmodule Satellite do
     }
   end
 
-  def to_satrec(satellite_map) do
-    {:ok, satrec} = Twoline_To_Satrec.twoline_to_satrec(satellite_map.tle_line_1, satellite_map.tle_line_2)
+  defp to_satrec(satellite_map) do
+    {:ok, satrec} = Satellite.Twoline_To_Satrec.twoline_to_satrec(satellite_map.tle_line_1, satellite_map.tle_line_2)
     %{satellite_name: satellite_map.satellite_name, satrec: satrec}
+  end
+
+  def find_best_part_of_pass(start_of_pass, end_of_pass, observerGd, satrec, current_best_pass) when start_of_pass < end_of_pass do
+    current_part_of_pass = predict_for(start_of_pass, observerGd, satrec)
+    IO.inspect start_of_pass
+    IO.inspect current_part_of_pass
+    # TODO if this magnitude is lower (brighter) than the last try (and the sun is still below the horizon), then use this one
+    # vsft.js: 422 - need to incorporate this line with the minWP part (current_part_of_pass.minWP)
+    # TODO better way of determining increment? like vsft.js: 387
+    next_time = increment_date(start_of_pass, 5)
+    find_best_part_of_pass(next_time, end_of_pass, observerGd, satrec, current_best_pass)
+  end
+
+  def find_best_part_of_pass(start_of_pass, end_of_pass, observerGd, satrec, current_best_pass), do: current_best_pass
+
+  def find_next_pass_for_seattle do
+    pass = find_first_pass_for(:calendar.universal_time, seattle_observer(), iss_satrec())
+    start_prediction = predict_for(pass.start_of_pass.datetime, seattle_observer(), iss_satrec())
+    end_prediction = predict_for(pass.end_of_pass.datetime, seattle_observer(), iss_satrec())
+
+    starting_pass = %{time: pass.start_of_pass.datetime, magnitude: start_prediction.satellite_magnitude, elevation: 0.0}
+
+    best_part_of_pass = find_best_part_of_pass(
+        pass.start_of_pass.datetime, pass.end_of_pass.datetime, seattle_observer(), iss_satrec(), starting_pass)
+
+    %{
+      start_time: pass.start_of_pass.datetime,
+      start_azimuth: start_prediction.azimuth_in_degrees,
+      end_time: pass.end_of_pass.datetime,
+      end_azimuth: end_prediction.azimuth_in_degrees,
+      start_magnitude: start_prediction.satellite_magnitude,
+      end_magnitude: end_prediction.satellite_magnitude
+    }
   end
 
   def find_first_pass_for({{year, month, day}, {hour, min, sec}} = start_date,
@@ -64,10 +100,10 @@ defmodule Satellite do
     start_of_pass = first_positive_elevation(start_date, observerGd, satellite_record, first_prediction.elevation_in_degrees, first_prediction.azimuth_in_degrees)
     end_of_pass = last_positive_elevation(start_of_pass.datetime, observerGd, satellite_record, 0.0, 0.0)
 
-    %{start_time: start_of_pass, end_time: end_of_pass}
+    %{start_of_pass: start_of_pass, end_of_pass: end_of_pass}
   end
 
-  def first_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) when elevation <= 0.0 do
+  defp first_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) when elevation <= 0.0 do
     #local_date = :calendar.universal_time_to_local_time(start_date)
     #{{yy, mm, dd},{h, m, s}} = local_date
     #IO.puts "#{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation}"
@@ -79,7 +115,7 @@ defmodule Satellite do
     first_positive_elevation(new_start_date, observerGd, satellite_record, prediction.elevation_in_degrees, prediction.azimuth_in_degrees)
   end
 
-  def first_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) do
+  defp first_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) do
     #local_date = :calendar.universal_time_to_local_time(start_date)
     #{{yy, mm, dd},{h, m, s}} = local_date
     #IO.puts "*** #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation} ***"
@@ -89,7 +125,7 @@ defmodule Satellite do
     decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation, azimuth)
   end
 
-  def decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation, azimuth) when elevation > 0.0 do
+  defp decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation, azimuth) when elevation > 0.0 do
     #local_date = :calendar.universal_time_to_local_time(start_date)
     #{{yy, mm, dd},{h, m, s}} = local_date
     #IO.puts "#{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation}"
@@ -99,14 +135,14 @@ defmodule Satellite do
     decrement_to_lowest_elevation(new_start_date, observerGd,  satellite_record, prediction.elevation_in_degrees, prediction.azimuth_in_degrees)
   end
 
-  def decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation, azimuth) do
+  defp decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation, azimuth) do
     local_date = :calendar.universal_time_to_local_time(start_date)
     {{yy, mm, dd},{h, m, s}} = local_date
     IO.puts "*** START TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation} ***"
     %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end
 
-  def last_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) when elevation >= 0.0 do
+  defp last_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) when elevation >= 0.0 do
     #local_date = :calendar.universal_time_to_local_time(start_date)
     #{{yy, mm, dd},{h, m, s}} = local_date
     #IO.puts "#{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation}"
@@ -116,7 +152,7 @@ defmodule Satellite do
     last_positive_elevation(new_start_date, observerGd, satellite_record, prediction.elevation_in_degrees, prediction.azimuth_in_degrees)
   end
 
-  def last_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) do
+  defp last_positive_elevation(start_date, observerGd, satellite_record, elevation, azimuth) do
     # End case - we are now at a negative elevation so return the datetime in local time
     local_date = :calendar.universal_time_to_local_time(start_date)
     {{yy, mm, dd},{h, m, s}} = local_date
@@ -124,7 +160,7 @@ defmodule Satellite do
     %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end
 
-  def increment_date(date, seconds) do
+  defp increment_date(date, seconds) do
     start_seconds = :calendar.datetime_to_gregorian_seconds(date)
     start_seconds + seconds |> :calendar.gregorian_seconds_to_datetime
   end
@@ -137,7 +173,7 @@ defmodule Satellite do
     predict_for(new_dt, seattle_observer, iss_satrec)
    end
 
-  def predict_for({{year, month, day}, {hour, min, sec}},
+  def predict_for({{year, month, day}, {hour, min, sec}} = input_date,
                   %{longitude: _, latitude: _, height: _} = observerGd,
                   satellite_record) do
 
@@ -147,10 +183,29 @@ defmodule Satellite do
     velocityEci = positionAndVelocity.velocity
     positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
     lookAngles = CoordinateTransforms.ecfToLookAngles(observerGd, positionEcf)
+    sun_position = get_position_at(input_date, observerGd)
+    #sunlit = sunlit?(positionEci, sun_position)
+    sunlit = calculate_sunlit_status(positionEci, sun_position)
+    magnitude = cond do
+      sunlit == true -> get_base_magnitude(-0.5, positionEci, sun_position, observerGd, gmst)
+      true -> 999 # Not sunlit, so set magnitude to something really faint
+    end
+
+    adjusted_magnitude = magnitude
+                          |> adjust_magnutide_for_low_elevation(lookAngles.elevation * Constants.rad2deg)
+                          |> adjust_magnitude_for_sunset(sun_position.elevation_radians)
+
+    # TODO: Get real satellite magnitude from magnitude_database
+    #magnitude = Sun.SunlightCalculations.get_magnitude(-0.5, positionEci, sun_position, observerGd, gmst)
+
     %{
       elevation_in_degrees: lookAngles.elevation * Constants.rad2deg,
       azimuth_in_degrees: lookAngles.azimuth * Constants.rad2deg,
-      range: lookAngles.rangeSat
+      range: lookAngles.rangeSat,
+      sunlit?: sunlit,
+      satellite_magnitude: magnitude,
+      min_wp: adjusted_magnitude,
+      sun_position: sun_position
     }
   end
 end

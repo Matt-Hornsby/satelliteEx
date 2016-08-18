@@ -35,6 +35,7 @@ defmodule CoordinateTransforms do
         %{azimuth: az, elevation: el, rangeSat: rangeSat}
   end
 
+  # Convert to geocentric (earth centered earth fixed) coordinates
   def geodetic_to_ecf(geodetic_coords) do
     longitude = geodetic_coords.longitude
     latitude = geodetic_coords.latitude
@@ -48,7 +49,9 @@ defmodule CoordinateTransforms do
     x = (normal + height) * :math.cos(latitude) * :math.cos(longitude)
     y = (normal + height) * :math.cos(latitude) * :math.sin(longitude)
     z = ((normal*(1-e2)) + height) * :math.sin(latitude)
-    %{ x: x, y: y, z: z}
+    local_geo_rad = :math.sqrt(x * x + y * y + z * z)
+    geo_lat = :math.asin(z / local_geo_rad)
+    %{ x: x, y: y, z: z, local_geo_rad: local_geo_rad, geo_lat: geo_lat}
   end
 
   def eci_to_geodetic(eciCoords, gmst) do

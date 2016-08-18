@@ -1,5 +1,5 @@
-defmodule Twoline_To_Satrec do
-  import Satellite.DaysToMDHMS, only: [days2mdhms: 2]
+defmodule Satellite.Twoline_To_Satrec do
+  import Satellite.DaysToMDHMS
   import Satellite.DatetimeConversions
   import Satellite.SGP4Init
 
@@ -126,9 +126,9 @@ defmodule Twoline_To_Satrec do
       piece_of_launch: String.trim(piece_of_launch),
       epoch_year: String.to_integer(epoch_year),
       epoch: String.to_float(epoch),
-      first_deriviative: first_deriviative |> string_to_float,
-      second_deriviative: second_deriviative |> String.trim |> from_fortran_float,
-      bstar_drag: bstar_drag |> String.trim |> from_fortran_float,
+      first_deriviative: first_deriviative |> Satellite.Math.string_to_float,
+      second_deriviative: second_deriviative |> String.trim |> Satellite.Math.from_fortran_float,
+      bstar_drag: bstar_drag |> String.trim |> Satellite.Math.from_fortran_float,
       ephemeris_type: String.to_integer(ephemeris_type),
       element_set: element_set |> String.trim |> String.to_integer,
       checksum: String.to_integer(checksum)
@@ -182,17 +182,5 @@ defmodule Twoline_To_Satrec do
     }
   end
 
-  def string_to_float(" " <> rest), do: string_to_float(rest)           # trim spaces
-  def string_to_float("-." <> rest), do: string_to_float("-0." <> rest) # prepend with 0, negative case
-  def string_to_float("." <> rest), do: string_to_float("0." <> rest)   # prepend with 0
-  def string_to_float(string), do: String.to_float(string)
-
-  def from_fortran_float(<<mantissa::binary-size(5),"-",exponent::binary-size(1)>>) do
-    "0.#{mantissa}e-#{exponent}" |> String.to_float
-  end
-
-  def from_fortran_float(<<"-",mantissa::binary-size(5),"-", exponent::binary-size(1)>>) do
-    "-0.#{mantissa}e-#{exponent}" |> String.to_float
-  end
 
 end
