@@ -39,11 +39,12 @@ defmodule Sun.SunlightCalculations do
     range =  :math.sqrt(qx * qx + qy * qy + qz * qz)
     cospa = (x1sun * qx + y1sun * qy + z1sun * qz) / vlsun / range
     phasefactor = (1 + cospa) / 2
-    xmag = -15.75 + 2.5 * :math.log(range * range / phasefactor) / :math.log(10) + standard_magnitude |> IO.inspect 
+    xmag = -15.75 + 2.5 * :math.log(range * range / phasefactor) / :math.log(10) + standard_magnitude
+    xmag
   end
 
   def adjust_magnutide_for_low_elevation(base_magnitude, elevation) when elevation < 20 do
-    base_magnitude + (20 - elevation) / 15 * 1 |> IO.inspect
+    base_magnitude + (20 - elevation) / 15 * 1
   end
 
   def adjust_magnutide_for_low_elevation(base_magnitude, _elevation), do: base_magnitude

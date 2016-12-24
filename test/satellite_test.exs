@@ -11,8 +11,8 @@ defmodule SatelliteTest do
     #tle_line_1 = "1 07530U 74089B   16195.86511907 -.00000024  00000-0  12706-3 0  9998"
     #tle_line_2 = "2 07530 101.5762 165.9737 0011522 259.3493 129.4719 12.53622068906466"
 
-    tle1 = Twoline_To_Satrec.extract_tle1(tle_line_1)
-    tle2 = Twoline_To_Satrec.extract_tle2(tle_line_2)
+    tle1 = Satellite.Twoline_To_Satrec.extract_tle1(tle_line_1)
+    tle2 = Satellite.Twoline_To_Satrec.extract_tle2(tle_line_2)
 
     {
       :ok,
@@ -24,7 +24,7 @@ defmodule SatelliteTest do
   end
 
   test "propagate", state do
-    {:ok, satrec} = Twoline_To_Satrec.twoline_to_satrec(state[:tle_line_1], state[:tle_line_2])
+    {:ok, satrec} = Satellite.Twoline_To_Satrec.twoline_to_satrec(state[:tle_line_1], state[:tle_line_2])
     positionAndVelocity = Satellite.SGP4.propagate(satrec, 2017, 1, 1, 1, 1, 1)
     positionEci = positionAndVelocity.position
     velocityEci = positionAndVelocity.velocity
@@ -91,7 +91,7 @@ defmodule SatelliteTest do
   end
 
   test "parse fortran exponent" do
-    assert Twoline_To_Satrec.from_fortran_float("12345-3") == 0.12345e-3
+    assert Satellite.Math.from_fortran_float("12345-3") == 0.12345e-3
   end
 
   test "parsed tle1 should return line 1", state do

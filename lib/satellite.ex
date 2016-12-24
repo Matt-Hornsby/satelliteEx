@@ -1,4 +1,15 @@
 defmodule Satellite do
+  @moduledoc """
+  This module provides functionality to pull satellite orbit information from
+  Celestrak and to predict visible satellite passes from a specified location
+  on Earth.
+
+  ## Examples
+
+  iex> Satellite.predict_for({{2016, 12, 24}, {12, 12, 12}}, Satellite.seattle_observer, Satellite.iss_satrec)
+
+  """
+
   import Satellite.DatetimeConversions
   import Sun.SunlightCalculations
   import Sun.SunPosition
@@ -58,10 +69,19 @@ defmodule Satellite do
     %{satellite_name: satellite_map.satellite_name, satrec: satrec}
   end
 
-  def find_best_part_of_pass(start_of_pass, end_of_pass, observerGd, satrec, current_best_pass) when start_of_pass < end_of_pass do
+  defp find_best_part_of_pass(start_of_pass, end_of_pass, observerGd, satrec, best_pass) when start_of_pass < end_of_pass do
     current_part_of_pass = predict_for(start_of_pass, observerGd, satrec)
-    IO.inspect start_of_pass
-    IO.inspect current_part_of_pass
+    #IO.inspect start_of_pass
+    #IO.inspect start_of_pass
+    #IO.inspect "elevation: #{current_part_of_pass.elevation_in_degrees} min_wp: #{current_part_of_pass.min_wp} satellite_magnitude:#{current_part_of_pass.satellite_magnitude} sun_elevation:#{current_part_of_pass.sun_position.elevation_radians}"
+
+    current_best_pass = if (current_part_of_pass.min_wp < best_pass.min_wp)
+                            && (current_part_of_pass.sun_position.elevation_radians < 0) do
+                              current_part_of_pass
+                            else
+                              best_pass
+                            end
+
     # TODO if this magnitude is lower (brighter) than the last try (and the sun is still below the horizon), then use this one
     # vsft.js: 422 - need to incorporate this line with the minWP part (current_part_of_pass.minWP)
     # TODO better way of determining increment? like vsft.js: 387
@@ -69,17 +89,17 @@ defmodule Satellite do
     find_best_part_of_pass(next_time, end_of_pass, observerGd, satrec, current_best_pass)
   end
 
-  def find_best_part_of_pass(start_of_pass, end_of_pass, observerGd, satrec, current_best_pass), do: current_best_pass
+  defp find_best_part_of_pass(start_of_pass, end_of_pass, observerGd, satrec, current_best_pass), do: current_best_pass
 
-  def find_next_pass_for_seattle do
+  defp find_next_pass_for_seattle do
     pass = find_first_pass_for(:calendar.universal_time, seattle_observer(), iss_satrec())
     start_prediction = predict_for(pass.start_of_pass.datetime, seattle_observer(), iss_satrec())
     end_prediction = predict_for(pass.end_of_pass.datetime, seattle_observer(), iss_satrec())
 
-    starting_pass = %{time: pass.start_of_pass.datetime, magnitude: start_prediction.satellite_magnitude, elevation: 0.0}
-
     best_part_of_pass = find_best_part_of_pass(
-        pass.start_of_pass.datetime, pass.end_of_pass.datetime, seattle_observer(), iss_satrec(), starting_pass)
+        pass.start_of_pass.datetime, pass.end_of_pass.datetime, seattle_observer(), iss_satrec(), start_prediction)
+
+    visibility = get_visiblity(best_part_of_pass.sun_position.elevation_radians, best_part_of_pass.satellite_magnitude)
 
     %{
       start_time: pass.start_of_pass.datetime,
@@ -87,9 +107,17 @@ defmodule Satellite do
       end_time: pass.end_of_pass.datetime,
       end_azimuth: end_prediction.azimuth_in_degrees,
       start_magnitude: start_prediction.satellite_magnitude,
-      end_magnitude: end_prediction.satellite_magnitude
+      end_magnitude: end_prediction.satellite_magnitude,
+      best_part_of_pass: best_part_of_pass,
+      visibility: visibility
     }
   end
+
+  def get_visiblity(sun_elevation, _satellite_magnitude) when sun_elevation > 0.0, do: [:not_visible, :none]
+  def get_visiblity(_sun_elevation, satellite_magnitude) when satellite_magnitude < 5.0, do: [:visible, :naked_eye]
+  def get_visiblity(_sun_elevation, satellite_magnitude) when satellite_magnitude < 8.0, do: [:visible, :binoculars]
+  def get_visiblity(_sun_elevation, satellite_magnitude) when satellite_magnitude < 10.0, do: [:visible, :small_telescope]
+  def get_visiblity(_sun_elevation, _satellite_magnitude), do: [:visible, :telescope]
 
   def find_first_pass_for({{year, month, day}, {hour, min, sec}} = start_date,
                           %{longitude: _, latitude: _, height: _} = observerGd,
@@ -138,7 +166,7 @@ defmodule Satellite do
   defp decrement_to_lowest_elevation(start_date, observerGd, satellite_record, elevation, azimuth) do
     local_date = :calendar.universal_time_to_local_time(start_date)
     {{yy, mm, dd},{h, m, s}} = local_date
-    IO.puts "*** START TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation} ***"
+    IO.puts "*** START TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***"
     %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end
 
@@ -156,7 +184,7 @@ defmodule Satellite do
     # End case - we are now at a negative elevation so return the datetime in local time
     local_date = :calendar.universal_time_to_local_time(start_date)
     {{yy, mm, dd},{h, m, s}} = local_date
-    IO.puts "*** END TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local): elevation= #{elevation} ***"
+    IO.puts "*** END TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***"
     %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end
 
@@ -199,6 +227,7 @@ defmodule Satellite do
     #magnitude = Sun.SunlightCalculations.get_magnitude(-0.5, positionEci, sun_position, observerGd, gmst)
 
     %{
+      datetime: input_date,
       elevation_in_degrees: lookAngles.elevation * Constants.rad2deg,
       azimuth_in_degrees: lookAngles.azimuth * Constants.rad2deg,
       range: lookAngles.rangeSat,
