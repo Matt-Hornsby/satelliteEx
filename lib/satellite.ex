@@ -91,7 +91,7 @@ defmodule Satellite do
 
   defp find_best_part_of_pass(start_of_pass, end_of_pass, observerGd, satrec, current_best_pass), do: current_best_pass
 
-  defp find_next_pass_for_seattle do
+  def find_next_iss_pass_for_seattle do
     pass = find_first_pass_for(:calendar.universal_time, seattle_observer(), iss_satrec())
     start_prediction = predict_for(pass.start_of_pass.datetime, seattle_observer(), iss_satrec())
     end_prediction = predict_for(pass.end_of_pass.datetime, seattle_observer(), iss_satrec())
@@ -99,7 +99,7 @@ defmodule Satellite do
     best_part_of_pass = find_best_part_of_pass(
         pass.start_of_pass.datetime, pass.end_of_pass.datetime, seattle_observer(), iss_satrec(), start_prediction)
 
-    visibility = get_visiblity(best_part_of_pass.sun_position.elevation_radians, best_part_of_pass.satellite_magnitude)
+    visibility = get_visibility(best_part_of_pass.sun_position.elevation_radians, best_part_of_pass.satellite_magnitude)
 
     %{
       start_time: pass.start_of_pass.datetime,
@@ -113,11 +113,11 @@ defmodule Satellite do
     }
   end
 
-  def get_visiblity(sun_elevation, _satellite_magnitude) when sun_elevation > 0.0, do: [:not_visible, :none]
-  def get_visiblity(_sun_elevation, satellite_magnitude) when satellite_magnitude < 5.0, do: [:visible, :naked_eye]
-  def get_visiblity(_sun_elevation, satellite_magnitude) when satellite_magnitude < 8.0, do: [:visible, :binoculars]
-  def get_visiblity(_sun_elevation, satellite_magnitude) when satellite_magnitude < 10.0, do: [:visible, :small_telescope]
-  def get_visiblity(_sun_elevation, _satellite_magnitude), do: [:visible, :telescope]
+  def get_visibility(sun_elevation, _satellite_magnitude) when sun_elevation > 0.0, do: [:not_visible, :none]
+  def get_visibility(_sun_elevation, satellite_magnitude) when satellite_magnitude < 5.0, do: [:visible, :naked_eye]
+  def get_visibility(_sun_elevation, satellite_magnitude) when satellite_magnitude < 8.0, do: [:visible, :binoculars]
+  def get_visibility(_sun_elevation, satellite_magnitude) when satellite_magnitude < 10.0, do: [:visible, :small_telescope]
+  def get_visibility(_sun_elevation, _satellite_magnitude), do: [:visible, :telescope]
 
   def find_first_pass_for({{year, month, day}, {hour, min, sec}} = start_date,
                           %{longitude: _, latitude: _, height: _} = observerGd,
@@ -214,17 +214,22 @@ defmodule Satellite do
     sun_position = get_position_at(input_date, observerGd)
     #sunlit = sunlit?(positionEci, sun_position)
     sunlit = calculate_sunlit_status(positionEci, sun_position)
+
+    # TODO: Need to convert this project to a supervised application and
+    # start this GenServer from a supervisor
+    #{:ok, pid} = Satellite.MagnitudeDatabase.start_link
+    #{:ok, satmag} = Satellite.MagnitudeDatabase.lookup(pid, satellite_record.satnum)
+    #IO.puts "Found satellite magnitude from database: #{satmag}"
+    satmag = -0.5
+
     magnitude = cond do
-      sunlit == true -> get_base_magnitude(-0.5, positionEci, sun_position, observerGd, gmst)
+      sunlit == true -> get_base_magnitude(satmag, positionEci, sun_position, observerGd, gmst)
       true -> 999 # Not sunlit, so set magnitude to something really faint
     end
 
     adjusted_magnitude = magnitude
                           |> adjust_magnutide_for_low_elevation(lookAngles.elevation * Constants.rad2deg)
                           |> adjust_magnitude_for_sunset(sun_position.elevation_radians)
-
-    # TODO: Get real satellite magnitude from magnitude_database
-    #magnitude = Sun.SunlightCalculations.get_magnitude(-0.5, positionEci, sun_position, observerGd, gmst)
 
     %{
       datetime: input_date,

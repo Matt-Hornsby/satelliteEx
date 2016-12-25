@@ -69,7 +69,7 @@ defmodule Satellite.MagnitudeDatabase do
       0x20,
       magnitude    :: binary
     >> = magnitude_line
-    
+
     converted_norad_id = String.to_integer(norad_id)
     {converted_magnitude, _} = Float.parse(magnitude)
 
