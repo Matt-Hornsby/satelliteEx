@@ -13,9 +13,7 @@ defmodule Satellite.Twoline_To_Satrec do
     tle2 = extract_tle2(tle_line_2)
 
     satrec = %Satrec{}
-    # Convert to integer
-    {satnum, _ } = Integer.parse(tle1.satellite_number)
-    satrec = %{satrec | satnum: satnum}
+    satrec = %{satrec | satnum: String.to_integer(tle1.satellite_number)}
     satrec = %{satrec | epochyr: tle1.epoch_year}
     satrec = %{satrec | epochdays: tle1.epoch}
     satrec = %{satrec | ndot: tle1.first_deriviative}

@@ -15,6 +15,9 @@ defmodule Satellite do
   import Sun.SunPosition
   require Logger
 
+  @doc """
+  Returns an observerGd record for an observer in Seattle
+  """
   def seattle_observer do
     observerGd = %{
        longitude: -122.3321 * Constants.deg2rad,
@@ -22,6 +25,9 @@ defmodule Satellite do
        height: 0.370}
   end
 
+  @doc """
+  Returns the satellite record for ISS from the Celestrak file
+  """
   def iss_satrec do
     satellites = parse_local_tle("Visual")
     iss = satellites
@@ -30,7 +36,7 @@ defmodule Satellite do
     iss.satrec
   end
 
-  def save_tle_from_celestrak(tle_name) do
+  defp save_tle_from_celestrak(tle_name) do
     body = stream_tle_from_celestrak(tle_name)
     File.write!("#{tle_name}.txt", body)
   end
@@ -113,6 +119,9 @@ defmodule Satellite do
     }
   end
 
+  @doc """
+  Returns a human-readable classification of the satellite magnitude
+  """
   def get_visibility(sun_elevation, _satellite_magnitude) when sun_elevation > 0.0, do: [:not_visible, :none]
   def get_visibility(_sun_elevation, satellite_magnitude) when satellite_magnitude < 5.0, do: [:visible, :naked_eye]
   def get_visibility(_sun_elevation, satellite_magnitude) when satellite_magnitude < 8.0, do: [:visible, :binoculars]
@@ -193,7 +202,7 @@ defmodule Satellite do
     start_seconds + seconds |> :calendar.gregorian_seconds_to_datetime
   end
 
-  def predict do
+  def locate_current_iss_position_for_seattle do
     now = :calendar.universal_time()
     now_secs = :calendar.datetime_to_gregorian_seconds(now)
     new_secs = now_secs + (3600 * 13) + (60 * 30)
