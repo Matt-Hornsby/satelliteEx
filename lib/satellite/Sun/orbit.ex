@@ -1,5 +1,5 @@
 defmodule Sun.Orbit do
-  def calculate_sun_orbit_at(julian_date) do
+  def calculate_sun_position_at(julian_date) do
     position = %{ra: 0.0, declination: 0.0}
 
     d0 = julian_date - 2451545
