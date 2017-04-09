@@ -29,10 +29,7 @@ defmodule Satellite do
   Returns the satellite record for ISS from the Celestrak file
   """
   def iss_satrec do
-    satellites = parse_local_tle("Visual")
-    iss = satellites
-         |> Enum.filter(&(&1.satellite_name == "ISS (ZARYA)"))
-         |> Enum.at(0)
+    iss = Satellite.SatelliteDatabase.lookup("ISS (ZARYA)")
     iss.satrec
   end
 
@@ -51,34 +48,8 @@ defmodule Satellite do
     body
   end
 
-  defp parse_local_tle(tle_name) do
-    File.stream!("#{tle_name}.txt") |> parse_tle_stream
-  end
-
-  defp parse_tle_stream(tle_stream) do
-    tle_stream |> Stream.chunk(3) |> Enum.map(&parse_satellite/1) |> Enum.map(&to_satrec/1)
-  end
-
-  defp parse_satellite(tle_lines) do
-    [satellite_name | tail] = tle_lines   # line 1 - satellite name
-    [tle_line_1 | tail] = tail            # line 2 - TLE line 1
-    [tle_line_2 | []] = tail              # line 3 - TLE line 2
-
-    %{
-      satellite_name: String.trim(satellite_name),
-      tle_line_1: String.trim(tle_line_1),
-      tle_line_2: String.trim(tle_line_2)
-    }
-  end
-
-  defp to_satrec(satellite_map) do
-    {:ok, satrec} = Satellite.Twoline_To_Satrec.twoline_to_satrec(satellite_map.tle_line_1, satellite_map.tle_line_2)
-    %{satellite_name: satellite_map.satellite_name, satrec: satrec}
-  end
-
   defp find_best_part_of_pass(start_of_pass, end_of_pass, observerGd, satrec, best_pass) when start_of_pass < end_of_pass do
     current_part_of_pass = predict_for(start_of_pass, observerGd, satrec)
-    #IO.inspect start_of_pass
     #IO.inspect start_of_pass
     #IO.inspect "elevation: #{current_part_of_pass.elevation_in_degrees} min_wp: #{current_part_of_pass.min_wp} satellite_magnitude:#{current_part_of_pass.satellite_magnitude} sun_elevation:#{current_part_of_pass.sun_position.elevation_radians}"
 
