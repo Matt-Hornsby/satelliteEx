@@ -25,6 +25,10 @@ defmodule Satellite do
        height: 0.370}
   end
 
+  def test do
+    Logger.info "Test"
+  end
+
   @doc """
   Returns the satellite record for ISS from the Celestrak file
   """
@@ -196,7 +200,7 @@ defmodule Satellite do
   defp decrement_to_lowest_elevation(start_date, _observerGd, _satellite_record, elevation, azimuth) do
     local_date = :calendar.universal_time_to_local_time(start_date)
     {{yy, mm, dd},{h, m, s}} = local_date
-    #IO.puts "*** START TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***"
+    IO.puts "*** START TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***"
     %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end
 
@@ -215,7 +219,7 @@ defmodule Satellite do
     local_date = :calendar.universal_time_to_local_time(start_date)
     {{yy, mm, dd},{h, m, s}} = local_date
     Logger.debug "Test"
-    #IO.puts "*** END TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***"
+    IO.puts "*** END TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***"
     %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end
 
@@ -229,7 +233,7 @@ defmodule Satellite do
     now_secs = :calendar.datetime_to_gregorian_seconds(now)
     new_secs = now_secs + (3600 * 13) + (60 * 30)
     new_dt = :calendar.gregorian_seconds_to_datetime(new_secs) |> :calendar.universal_time_to_local_time
-    predict_for(new_dt, seattle_observer, iss_satrec)
+    predict_for(new_dt, seattle_observer(), iss_satrec())
    end
 
   def predict_for({{year, month, day}, {hour, min, sec}} = input_date,
