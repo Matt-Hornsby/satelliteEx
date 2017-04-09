@@ -25,10 +25,6 @@ defmodule Satellite do
        height: 0.370}
   end
 
-  def test do
-    Logger.info "Test"
-  end
-
   @doc """
   Returns the satellite record for ISS from the Celestrak file
   """
