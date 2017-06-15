@@ -42,7 +42,12 @@ defmodule Satellite.MagnitudeDatabase do
   ## Server Callbacks
 
   def init(:ok) do
-    magnitudes = File.stream!("satmag.txt") |> parse_satmag_stream
+    magnitudes = 
+      :code.priv_dir(:satellite)
+      |> Path.join("satmag.txt")
+      |> File.stream!
+      |> parse_satmag_stream
+
     {:ok, magnitudes}
   end
 
