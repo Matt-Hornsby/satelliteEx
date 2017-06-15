@@ -1,4 +1,7 @@
 defmodule Sun.SunlightCalculations do
+  require Satellite.Constants
+  alias Satellite.{Constants, CoordinateTransforms}
+
   def calculate_sunlit_status(satellite_position, sun_position) do
     k = satellite_position.x * sun_position.x_plane +
         satellite_position.y * sun_position.y_plane +

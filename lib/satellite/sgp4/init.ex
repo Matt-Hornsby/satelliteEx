@@ -1,9 +1,13 @@
-defmodule Satellite.SGP4Init do
-  import Satellite.Initl
-  import Satellite.SGP4
+#
+# sgp4init
+#
 
-  def sgp4init(satrec, init_parameters) do
+defmodule Satellite.SGP4.Init do
+  require Satellite.Constants
+  alias Satellite.{Constants, SGP4}
+  import Satellite.Dates
 
+  def init(satrec, init_parameters) do
     opsmode = init_parameters.opsmode
     satn    = init_parameters.satn
     epoch   = init_parameters.epoch
@@ -149,7 +153,7 @@ defmodule Satellite.SGP4Init do
         xhdot1 = -temp1 * cosio
         satrec = %{satrec | nodedot: xhdot1 + (0.5 * temp2 * (4.0 - 19.0 * cosio2) +
                             2.0 * temp3 * (3.0 - 7.0 * cosio2)) * cosio}
-        xpidot =  satrec.argpdot+ satrec.nodedot
+        # xpidot =  satrec.argpdot+ satrec.nodedot
         satrec = %{satrec | omgcof: satrec.bstar * cc3 * :math.cos(satrec.argpo)}
         satrec = %{satrec | xmcof: 0.0}
 
@@ -182,28 +186,108 @@ defmodule Satellite.SGP4Init do
         # The code starts on line 331 in sgp4init.js
 
         #----------- set variables if not deep space -----------
-        if (satrec.isimp !== 1) do
-          cc1sq = satrec.cc1 * satrec.cc1
-          satrec = %{satrec | d2: 4.0 * ao * tsi * cc1sq}
-          temp = satrec.d2 * tsi * satrec.cc1 / 3.0
-          satrec = %{satrec | d3: (17.0 * ao + sfour) * temp}
-          satrec = %{satrec | d4: 0.5 * temp * ao * tsi * (221.0 * ao + 31.0 * sfour) * satrec.cc1}
-          satrec = %{satrec | t3cof: satrec.d2 + 2.0 * cc1sq}
-          satrec = %{satrec | t4cof: 0.25 * (3.0 * satrec.d3 + satrec.cc1 * (12.0 * satrec.d2 + 10.0 * cc1sq))}
-          satrec = %{satrec | t5cof: 0.2 * (3.0 * satrec.d4 +
-                          12.0 * satrec.cc1 * satrec.d3 +
-                          6.0 * satrec.d2 * satrec.d2 +
-                          15.0 * cc1sq * (2.0 * satrec.d2 + cc1sq))}
+        satrec = if satrec.isimp === 1 do
+          satrec
+        else
+          new_satrec = satrec
+          cc1sq = new_satrec.cc1 * new_satrec.cc1
+          new_satrec = %{new_satrec | d2: 4.0 * ao * tsi * cc1sq}
+          temp = new_satrec.d2 * tsi * new_satrec.cc1 / 3.0
+          new_satrec = %{new_satrec | d3: (17.0 * ao + sfour) * temp}
+          new_satrec = %{new_satrec | d4: 0.5 * temp * ao * tsi * (221.0 * ao + 31.0 * sfour) * new_satrec.cc1}
+          new_satrec = %{new_satrec | t3cof: new_satrec.d2 + 2.0 * cc1sq}
+          new_satrec = %{new_satrec | t4cof: 0.25 * (3.0 * new_satrec.d3 + new_satrec.cc1 * (12.0 * new_satrec.d2 + 10.0 * cc1sq))}
+          new_satrec = %{new_satrec | t5cof: 0.2 * (3.0 * new_satrec.d4 +
+                          12.0 * new_satrec.cc1 * new_satrec.d3 +
+                          6.0 * new_satrec.d2 * new_satrec.d2 +
+                          15.0 * cc1sq * (2.0 * new_satrec.d2 + cc1sq))}
+          new_satrec
         end
 
-        results = sgp4(satrec, 0.0)
+        results = SGP4.calculate(satrec, 0.0)
         satrec = %{results.satrec | init: 'n'}
         {:ok, satrec}
 
       end
   end
 
-  def adjust_for_low_perigee(perige, _sfour, _qzms24) when perige < 156.0 do
+  def initl(initlParameters) do
+    ecco = initlParameters.ecco
+    epoch = initlParameters.epoch
+    inclo = initlParameters.inclo
+    no = initlParameters.no
+    # method is unused
+    #method = initlParameters.method
+    opsmode = initlParameters.opsmode
+
+    #  ------------- calculate auxillary epoch quantities ----------
+    eccsq = ecco * ecco
+    omeosq = 1.0 - eccsq
+    rteosq = :math.sqrt(omeosq)
+    cosio = :math.cos(inclo)
+    cosio2 = cosio * cosio
+
+    #  ------------------ un-kozai the mean motion -----------------
+    ak = :math.pow(Constants.xke / no, Constants.x2o3)
+    d1 = 0.75 * Constants.j2 * (3.0 * cosio2 - 1.0) / (rteosq * omeosq)
+    delPrime = d1 / (ak * ak)
+    adel = ak * (1.0 - delPrime * delPrime - delPrime *
+        (1.0 / 3.0 + 134.0 * delPrime * delPrime / 81.0))
+    delPrime = d1 / (adel * adel)
+    no = no / (1.0 + delPrime)
+    ao = :math.pow(Constants.xke / no, Constants.x2o3)
+    sinio = :math.sin(inclo)
+    po = ao * omeosq
+    con42 = 1.0 - 5.0 * cosio2
+    con41 = -con42 - cosio2 - cosio2
+    ainv = 1.0 / ao
+    posq = po * po
+    rp = ao * (1.0 - ecco)
+    method = 'n'
+
+    #  sgp4fix modern approach to finding sidereal time
+    gsto = if (opsmode === 'a') do
+      #  sgp4fix use old way of finding gst
+      #  count integer number of days from 0 jan 1970
+      ts70 = epoch - 7305.0
+      ds70 = Float.floor(ts70 + 1.0e-8)
+      tfrac = ts70 - ds70
+      #  find greenwich location at epoch
+      c1 = 1.72027916940703639e-2
+      thgr70 = 1.7321343856509374
+      fk5r = 5.07551419432269442e-15
+      c1p2p = c1 + Constants.two_pi
+      gsto = rem(thgr70 + c1 * ds70 + c1p2p * tfrac + ts70 * ts70 * fk5r, Constants.two_pi)
+      cond do
+        (gsto < 0.0) -> gsto + Constants.two_pi
+        true -> gsto
+      end
+
+    else
+      gsto = gstime(epoch + 2433281.5)
+    end
+
+    initlResults = %{
+            no: no,
+            method: method,
+            ainv: ainv,
+            ao: ao,
+            con41: con41,
+            con42: con42,
+            cosio: cosio,
+            cosio2: cosio2,
+            eccsq: eccsq,
+            omeosq: omeosq,
+            posq: posq,
+            rp: rp,
+            rteosq: rteosq,
+            sinio: sinio,
+            gsto: gsto
+        }
+    initlResults
+  end
+
+  defp adjust_for_low_perigee(perige, _sfour, _qzms24) when perige < 156.0 do
     #  - for perigees below 156 km, s and qoms2t are altered -
     sfour = perige - 78.0
     sfour = cond do
@@ -218,6 +302,5 @@ defmodule Satellite.SGP4Init do
     {sfour, qzms24}
   end
 
-  def adjust_for_low_perigee(_perige, sfour, qzms24), do: {sfour, qzms24}
-
+  defp adjust_for_low_perigee(_perige, sfour, qzms24), do: {sfour, qzms24}
 end

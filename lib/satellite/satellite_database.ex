@@ -8,12 +8,16 @@ defmodule Satellite.SatelliteDatabase do
   """
   def start_link do
     IO.puts "Starting satellite database"
-    GenServer.start_link(__MODULE__, :ok, name: :satellite_database)
+    GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
   def lookup(satellite_name) do
-   GenServer.call(:satellite_database, {:lookup, satellite_name})
- end
+    GenServer.call(__MODULE__, {:lookup, satellite_name})
+  end
+
+  def list do
+    GenServer.call(__MODULE__, :list)
+  end
 
  ## Server API
 
@@ -28,6 +32,10 @@ def handle_call({:lookup, satellite_name}, _from, satellites) do
        |> Enum.filter(&(&1.satellite_name == satellite_name))
        |> Enum.at(0)
   {:reply, satellite, satellites}
+end
+
+def handle_call(:list, _from, satellites) do
+  {:reply, satellites, satellites}
 end
 
 defp parse_local_tle(tle_name) do
@@ -51,7 +59,7 @@ defp parse_satellite(tle_lines) do
 end
 
 defp to_satrec(satellite_map) do
-  {:ok, satrec} = Satellite.Twoline_To_Satrec.twoline_to_satrec(satellite_map.tle_line_1, satellite_map.tle_line_2)
+  {:ok, satrec} = Satellite.TLE.to_satrec(satellite_map.tle_line_1, satellite_map.tle_line_2)
   %{satellite_name: satellite_map.satellite_name, satrec: satrec}
 end
 

@@ -2,6 +2,15 @@ defmodule Satellite.Application do
   use Application
 
   def start(_, _) do
-    Satellite.Supervisor.start_link
+    import Supervisor.Spec
+
+    children = [
+      worker(Satellite.SatelliteDatabase, []),
+      worker(Satellite.MagnitudeDatabase, [])
+    ]
+
+    opts = [strategy: :one_for_one, name: RHR.Supervisor]
+
+    Supervisor.start_link(children, opts)
   end
 end

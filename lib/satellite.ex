@@ -10,7 +10,9 @@ defmodule Satellite do
 
   """
 
-  import Satellite.DatetimeConversions
+  require Satellite.Constants
+  alias Satellite.{Constants, CoordinateTransforms}
+  import Satellite.Dates
   import Sun.SunlightCalculations
   import Sun.SunPosition
   require Logger

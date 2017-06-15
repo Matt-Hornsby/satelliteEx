@@ -1,4 +1,7 @@
-defmodule CoordinateTransforms do
+defmodule Satellite.CoordinateTransforms do
+  require Satellite.Constants
+  alias Satellite.Constants
+
   def eci_to_ecf(eci_coords, gmst) do
     x = (eci_coords.x * :math.cos(gmst)) + (eci_coords.y * :math.sin(gmst))
     y = (eci_coords.x * (-:math.sin(gmst))) + (eci_coords.y * :math.cos(gmst))
@@ -25,14 +28,14 @@ defmodule CoordinateTransforms do
   end
 
   def topocentricToLookAngles(topocentricCoords) do
-        topS = topocentricCoords.topS
-        topE = topocentricCoords.topE
-        topZ = topocentricCoords.topZ
-        rangeSat = :math.sqrt((topS*topS) + (topE*topE) + (topZ*topZ))
-        el = :math.asin(topZ/rangeSat)
-        az = :math.atan2(-topE, topS) + Constants.pi
+    topS = topocentricCoords.topS
+    topE = topocentricCoords.topE
+    topZ = topocentricCoords.topZ
+    rangeSat = :math.sqrt((topS*topS) + (topE*topE) + (topZ*topZ))
+    el = :math.asin(topZ/rangeSat)
+    az = :math.atan2(-topE, topS) + Constants.pi
 
-        %{azimuth: az, elevation: el, rangeSat: rangeSat}
+    %{azimuth: az, elevation: el, rangeSat: rangeSat}
   end
 
   # Convert to geocentric (earth centered earth fixed) coordinates
@@ -85,6 +88,4 @@ defmodule CoordinateTransforms do
   end
 
   def iteration_params(iteration_params, _k, _kmax), do: %{a: iteration_params.c, latitude: iteration_params.latitude}
-
-
 end

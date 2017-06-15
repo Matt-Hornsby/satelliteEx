@@ -1,16 +1,14 @@
-defmodule Satellite.Twoline_To_Satrec do
-  import Satellite.DaysToMDHMS
-  import Satellite.DatetimeConversions
-  import Satellite.SGP4Init
+defmodule Satellite.TLE do
+  require Satellite.Constants
+  alias Satellite.{Constants, SGP4}
+  import Satellite.Dates
 
   @opsmode 'i'
   @xpdotp 1440.0 / (2.0 * Constants.pi()) # 229.1831180523293
 
-
-  def twoline_to_satrec(tle_line_1, tle_line_2) do
-
-    tle1 = extract_tle1(tle_line_1)
-    tle2 = extract_tle2(tle_line_2)
+  def to_satrec(tle_line_1, tle_line_2) do
+    tle1 = parse_line1(tle_line_1)
+    tle2 = parse_line2(tle_line_2)
 
     satrec = %Satrec{}
     satrec = %{satrec | satnum: String.to_integer(tle1.satellite_number)}
@@ -65,7 +63,7 @@ defmodule Satellite.Twoline_To_Satrec do
         xnodeo: satrec.nodeo
       }
 
-      sgp4init(satrec, sgp4_init_parameters)
+      SGP4.new(satrec, sgp4_init_parameters)
   end
 
   def epoch_year(year) when year < 57,  do: 2000 + year
@@ -75,7 +73,7 @@ defmodule Satellite.Twoline_To_Satrec do
     # TODO: Skipping this for now, since I don't have a good way to test yet
   #end
 
-  def extract_tle1(tle_line_1) do
+  def parse_line1(tle_line_1) do
     #tle_line_1 = "1 25544U 98067A   13149.87225694  .00009369  00000-0  16828-3 0  9031"
     <<
       line_number         :: binary-size(1),
@@ -135,7 +133,7 @@ defmodule Satellite.Twoline_To_Satrec do
     }
   end
 
-  def extract_tle2(tle_line_2) do
+  def parse_line2(tle_line_2) do
     #tle_line_2 = "2 25544 051.6485 199.1576 0010128 012.7275 352.5669 15.50581403831869"
     <<
       line_number         :: binary-size(1),
@@ -181,6 +179,4 @@ defmodule Satellite.Twoline_To_Satrec do
       checksum: checksum |> String.trim |> String.to_integer
     }
   end
-
-
 end
