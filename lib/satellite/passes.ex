@@ -85,7 +85,7 @@ defmodule Satellite.Passes do
     positionEci = positionAndVelocity.position
     #velocityEci = positionAndVelocity.velocity
     positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
-    lookAngles = CoordinateTransforms.ecfToLookAngles(observer, positionEcf)
+    lookAngles = CoordinateTransforms.ecf_to_look_angles(observer, positionEcf)
     sun_position = get_position_at(input_date, observer)
     #sunlit = sunlit?(positionEci, sun_position)
     sunlit = calculate_sunlit_status(positionEci, sun_position)

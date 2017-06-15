@@ -9,7 +9,7 @@ defmodule Satellite.CoordinateTransforms do
     %{ x: x, y: y, z: z }
   end
 
-  def ecfToLookAngles(observerCoordsEcf, satelliteCoordsEcf) do
+  def ecf_to_look_angles(observerCoordsEcf, satelliteCoordsEcf) do
     longitude   = observerCoordsEcf.longitude
     latitude    = observerCoordsEcf.latitude
 
@@ -24,10 +24,10 @@ defmodule Satellite.CoordinateTransforms do
     topS = ((:math.sin(latitude) * :math.cos(longitude) * rx) + (:math.sin(latitude) * :math.sin(longitude) * ry) - (:math.cos(latitude) * rz))
     topE = (-:math.sin(longitude) * rx) + (:math.cos(longitude) * ry)
     topZ = ((:math.cos(latitude)*:math.cos(longitude)*rx) + (:math.cos(latitude)*:math.sin(longitude)*ry) + (:math.sin(latitude)*rz))
-    %{ topS: topS, topE: topE, topZ: topZ } |> topocentricToLookAngles
+    %{ topS: topS, topE: topE, topZ: topZ } |> topocentric_to_look_angles
   end
 
-  def topocentricToLookAngles(topocentricCoords) do
+  defp topocentric_to_look_angles(topocentricCoords) do
     topS = topocentricCoords.topS
     topE = topocentricCoords.topE
     topZ = topocentricCoords.topZ
@@ -56,6 +56,10 @@ defmodule Satellite.CoordinateTransforms do
     geo_lat = :math.asin(z / local_geo_rad)
     %{ x: x, y: y, z: z, local_geo_rad: local_geo_rad, geo_lat: geo_lat}
   end
+
+  #
+  # TODO: Remove these methods below?
+  #
 
   def eci_to_geodetic(eciCoords, gmst) do
     a   = 6378.137

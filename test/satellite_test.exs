@@ -41,7 +41,7 @@ defmodule SatelliteTest do
     positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
     # observerEcf = CoordinateTransforms.geodetic_to_ecf(observerGd)
     #positionGd = satellite.eciToGeodetic(positionEci, gmst)
-    lookAngles = CoordinateTransforms.ecfToLookAngles(observerGd, positionEcf)
+    lookAngles = CoordinateTransforms.ecf_to_look_angles(observerGd, positionEcf)
 
     tolerance = 0.0000001
     assert_in_delta positionEci.x, -1598.9224945568021, tolerance
