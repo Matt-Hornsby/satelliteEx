@@ -3,8 +3,8 @@ defmodule Satellite.SatelliteDatabase do
   require Logger
 
   @sources [
-    {Satellite.Sources.Celestrak, ["Visual"]},
     {Satellite.Sources.Amsat, []},
+    {Satellite.Sources.Celestrak, ["Visual"]},
   ]
 
   ## Client API
@@ -44,7 +44,11 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   def handle_call({:lookup, name}, _from, satellites) do
-    satellite = Enum.find(Map.keys(satellites), &(&1.name == name))
+    satellite = 
+      satellites
+      |> Map.values
+      |> Enum.find(&(&1.name == name))
+
     {:reply, satellite, satellites}
   end
   def handle_call({:lookup_number, number}, _from, satellites) do
@@ -52,7 +56,7 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   def handle_call(:list, _from, satellites) do
-    {:reply, Map.keys(satellites), satellites}
+    {:reply, Map.values(satellites), satellites}
   end
 
   ## Private

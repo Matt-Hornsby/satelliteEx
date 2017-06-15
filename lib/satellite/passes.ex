@@ -90,14 +90,10 @@ defmodule Satellite.Passes do
     #sunlit = sunlit?(positionEci, sun_position)
     sunlit = calculate_sunlit_status(positionEci, sun_position)
 
-    # TODO: Need to convert this project to a supervised application and
-    # start this GenServer from a supervisor
-    #{:ok, pid} = Satellite.MagnitudeDatabase.start_link
-    #{:ok, satmag} = Satellite.MagnitudeDatabase.lookup(pid, satellite_record.satnum)
-    #IO.puts "Found satellite magnitude from database: #{satmag}"
-
-    #HACK: Hardcoding the base magnitude for ISS here...
-    satmag = -0.5
+    satmag = case Satellite.MagnitudeDatabase.lookup(satellite_record.satnum) do
+      {:ok, mag} -> mag
+      _ -> 0 
+    end
 
     magnitude = cond do
       sunlit == true -> get_base_magnitude(satmag, positionEci, sun_position, observer, gmst)
