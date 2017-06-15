@@ -2,7 +2,10 @@ defmodule Satellite.SatelliteDatabase do
   use GenServer
   require Logger
 
-  @tles ["Visual", "Amateur"]
+  @sources [
+    {Satellite.Sources.Celestrak, ["Visual"]},
+    {Satellite.Sources.Amsat, []},
+  ]
 
   ## Client API
 
@@ -28,40 +31,47 @@ defmodule Satellite.SatelliteDatabase do
  ## Server API
 
   def init(:ok) do
-    # Open and parse file
-    satellites = @tles |> Enum.map(&load_tle(&1)) |> List.flatten
-    {:ok, satellites}
+    # Download and parse TLEs from sources
+    sat_map =
+      @sources
+      |> Stream.map(&load_satrecs/1)
+      |> Enum.to_list
+      |> List.flatten
+      |> Enum.map(&{&1.satnum, &1})
+      |> Enum.into(%{})
+
+    {:ok, sat_map}
   end
 
   def handle_call({:lookup, name}, _from, satellites) do
-    satellite = Enum.find(satellites, &(&1.name == name))
+    satellite = Enum.find(Map.keys(satellites), &(&1.name == name))
     {:reply, satellite, satellites}
   end
   def handle_call({:lookup_number, number}, _from, satellites) do
-    satellite = Enum.find(satellites, &(&1.satnum == number))
-    {:reply, satellite, satellites}
+    {:reply, satellites[number], satellites}
   end
 
   def handle_call(:list, _from, satellites) do
-    {:reply, satellites, satellites}
+    {:reply, Map.keys(satellites), satellites}
   end
 
   ## Private
 
-  defp load_tle(tle_name) do
-    case Satellite.Celestrak.download_tle(tle_name) do
-      {:ok, body} ->
-        body    
-        |> String.split("\n")
-        |> parse_tle_stream
+  defp load_satrecs({source, args}) do
+    with {:ok, body} <- apply(source, :download, args) do
+      satrecs = parse_tle_string(body)
+      Logger.info("Added #{Enum.count(satrecs)} satellites")
+      satrecs
+    else
       _ ->
-        Logger.warn("Error getting Celestrak TLE '#{tle_name}.txt'; using local copy")
-        File.stream!("tle/#{tle_name}.txt") |> parse_tle_stream
+        Logger.warn("Error downloading from #{source}")
+        []
     end
   end
 
-  defp parse_tle_stream(tle_stream) do
-    tle_stream
+  defp parse_tle_string(string) do
+    string
+    |> String.split("\n")
     |> Stream.chunk(3)
     |> Enum.map(&parse_entry/1)
     |> Enum.map(&entry_to_satrec/1)
