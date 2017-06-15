@@ -39,7 +39,7 @@ def handle_call(:list, _from, satellites) do
 end
 
 defp parse_local_tle(tle_name) do
-  File.stream!("#{tle_name}.txt") |> parse_tle_stream
+  File.stream!("tle/#{tle_name}.txt") |> parse_tle_stream
 end
 
 defp parse_tle_stream(tle_stream) do
