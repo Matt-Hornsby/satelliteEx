@@ -6,7 +6,7 @@ defmodule Satellite.Passes do
 
   ## Examples
 
-  iss_satrec = Satellite.SatelliteDatabase.lookup("ISS (ZARYA)").satrec
+  iss_satrec = Satellite.SatelliteDatabase.lookup("ISS (ZARYA)")
   seattle = %Observer{
     longitude: -122.3321 * Constants.deg2rad,
     latitude: 47.6062 * Constants.deg2rad,

@@ -1,5 +1,8 @@
 defmodule Satellite.SatelliteDatabase do
   use GenServer
+  require Logger
+
+  @tles ["Visual", "Amateur"]
 
   ## Client API
 
@@ -7,12 +10,15 @@ defmodule Satellite.SatelliteDatabase do
   Starts the database.
   """
   def start_link do
-    IO.puts "Starting satellite database"
+    Logger.info "Starting satellite database"
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
-  def lookup(satellite_name) do
+  def lookup(satellite_name) when is_binary(satellite_name) do
     GenServer.call(__MODULE__, {:lookup, satellite_name})
+  end
+  def lookup(number) when is_integer(number) do
+    GenServer.call(__MODULE__, {:lookup_number, number})
   end
 
   def list do
@@ -21,46 +27,58 @@ defmodule Satellite.SatelliteDatabase do
 
  ## Server API
 
- def init(:ok) do
-   # Open and parse file
-   satellites = "Visual" |> parse_local_tle
-  {:ok, satellites}
-end
+  def init(:ok) do
+    # Open and parse file
+    satellites = @tles |> Enum.map(&load_tle(&1)) |> List.flatten
+    {:ok, satellites}
+  end
 
-def handle_call({:lookup, satellite_name}, _from, satellites) do
-  satellite = satellites
-       |> Enum.filter(&(&1.satellite_name == satellite_name))
-       |> Enum.at(0)
-  {:reply, satellite, satellites}
-end
+  def handle_call({:lookup, name}, _from, satellites) do
+    satellite = Enum.find(satellites, &(&1.name == name))
+    {:reply, satellite, satellites}
+  end
+  def handle_call({:lookup_number, number}, _from, satellites) do
+    satellite = Enum.find(satellites, &(&1.satnum == number))
+    {:reply, satellite, satellites}
+  end
 
-def handle_call(:list, _from, satellites) do
-  {:reply, satellites, satellites}
-end
+  def handle_call(:list, _from, satellites) do
+    {:reply, satellites, satellites}
+  end
 
-defp parse_local_tle(tle_name) do
-  File.stream!("tle/#{tle_name}.txt") |> parse_tle_stream
-end
+  ## Private
 
-defp parse_tle_stream(tle_stream) do
-  tle_stream |> Stream.chunk(3) |> Enum.map(&parse_satellite/1) |> Enum.map(&to_satrec/1)
-end
+  defp load_tle(tle_name) do
+    case Satellite.Celestrak.download_tle(tle_name) do
+      {:ok, body} ->
+        body    
+        |> String.split("\n")
+        |> parse_tle_stream
+      _ ->
+        Logger.warn("Error getting Celestrak TLE '#{tle_name}.txt'; using local copy")
+        File.stream!("tle/#{tle_name}.txt") |> parse_tle_stream
+    end
+  end
 
-defp parse_satellite(tle_lines) do
-  [satellite_name | tail] = tle_lines   # line 1 - satellite name
-  [tle_line_1 | tail] = tail            # line 2 - TLE line 1
-  [tle_line_2 | []] = tail              # line 3 - TLE line 2
+  defp parse_tle_stream(tle_stream) do
+    tle_stream
+    |> Stream.chunk(3)
+    |> Enum.map(&parse_entry/1)
+    |> Enum.map(&entry_to_satrec/1)
+  end
 
-  %{
-    satellite_name: String.trim(satellite_name),
-    tle_line_1: String.trim(tle_line_1),
-    tle_line_2: String.trim(tle_line_2)
-  }
-end
+  defp parse_entry(tle_lines) do
+    [satellite_name, tle_line_1, tle_line_2] = tle_lines
 
-defp to_satrec(satellite_map) do
-  {:ok, satrec} = Satellite.TLE.to_satrec(satellite_map.tle_line_1, satellite_map.tle_line_2)
-  %{satellite_name: satellite_map.satellite_name, satrec: satrec}
-end
+    {
+      String.trim(satellite_name),
+      String.trim(tle_line_1),
+      String.trim(tle_line_2)
+    }
+  end
 
+  defp entry_to_satrec({name, tle1, tle2}) do
+    {:ok, satrec} = Satellite.TLE.to_satrec(tle1, tle2)
+    %{satrec | name: name}
+  end
 end

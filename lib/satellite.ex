@@ -36,7 +36,7 @@ defmodule Satellite do
   end
 
   defp iss_satrec do
-    Satellite.SatelliteDatabase.lookup("ISS (ZARYA)").satrec
+    Satellite.SatelliteDatabase.lookup("ISS (ZARYA)")
   end
 
   defp seattle_observer do
