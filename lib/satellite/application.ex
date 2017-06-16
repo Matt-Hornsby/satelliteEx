@@ -9,7 +9,7 @@ defmodule Satellite.Application do
       worker(Satellite.MagnitudeDatabase, [])
     ]
 
-    opts = [strategy: :one_for_one, name: RHR.Supervisor]
+    opts = [strategy: :one_for_one, name: Satellite.Supervisor]
 
     Supervisor.start_link(children, opts)
   end
