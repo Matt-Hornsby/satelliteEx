@@ -21,4 +21,7 @@ defmodule Satellite.Math do
   def from_fortran_float(<<"-",mantissa::binary-size(5),"+", exponent::binary-size(1)>>) do
     "-0.#{mantissa}e#{exponent}" |> String.to_float
   end
+
+  # Special case: weird formatting on AMSAT TLEs... just go with it
+  def from_fortran_float("00000 0"), do: 0.0
 end
