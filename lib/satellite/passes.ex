@@ -59,7 +59,8 @@ defmodule Satellite.Passes do
         start_magnitude: start_prediction.satellite_magnitude,
         end_magnitude: end_prediction.satellite_magnitude,
         best_part_of_pass: best_part_of_pass,
-        visibility: visibility
+        visibility: visibility,
+        satnum: satrec.satnum
       }
   end
 
