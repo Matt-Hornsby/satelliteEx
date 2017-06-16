@@ -97,10 +97,17 @@ defmodule Satellite.SatelliteDatabase do
   defp entry_to_satrec({name, tle1, tle2}) do
     case Satellite.TLE.to_satrec(tle1, tle2) do
       {:ok, satrec} ->
-        {:ok, %{satrec | name: name}}
+        {:ok, put_magnitude(%{satrec | name: name})}
       {:error, :invalid_tle} ->
         Logger.warn("Invalid TLE format for '#{name}'")
         {:error, :invalid_tle}
+    end
+  end
+
+  defp put_magnitude(satrec) do
+    case Satellite.MagnitudeDatabase.lookup(satrec.satnum) do
+      {:ok, magnitude} -> %{satrec | magnitude: magnitude}
+      _ -> satrec
     end
   end
 end

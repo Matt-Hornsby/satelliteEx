@@ -27,18 +27,17 @@ defmodule Satellite.Passes do
   #
 
   def list_passes(satrec, count, observer, start_datetime) when count > 0 do
-    startPass = next_pass(satrec, start_datetime, observer)
-    list_passes(satrec, count - 1, observer, startPass.end_time, [startPass])
+    first_pass = next_pass(satrec, start_datetime, observer)
+    list_passes(satrec, count - 1, observer, first_pass.end_time, [first_pass])
   end
-  def list_passes(_satrec, 0, _observer, _start_datetime, passes), do: passes
-  def list_passes(satrec, count, observer, start_datetime, passes) do
 
-    new_time = (:calendar.datetime_to_gregorian_seconds(start_datetime) + 1)
-              |> :calendar.gregorian_seconds_to_datetime
-
-    this_pass = next_pass(satrec, new_time, observer)
-
-    list_passes(satrec, count - 1, observer, this_pass.end_time, passes ++ [this_pass])
+  def list_passes_until(satrec, observer, start_datetime, end_datetime) when end_datetime >= start_datetime do
+    first_pass = next_pass(satrec, start_datetime, observer)
+    if first_pass.start_time > end_datetime do
+      []
+    else
+      list_passes_until(satrec, observer, first_pass.end_time, end_datetime, [first_pass])
+    end
   end
 
   def next_pass(satrec, {{_year, _month, _day}, {_hour, _min, _sec}} = start_date,
@@ -76,6 +75,25 @@ defmodule Satellite.Passes do
   # PRIVATE
   #
 
+  defp list_passes(_satrec, 0, _observer, _start_datetime, passes), do: passes
+  defp list_passes(satrec, count, observer, start_datetime, passes) do
+    new_time = (:calendar.datetime_to_gregorian_seconds(start_datetime) + 1)
+              |> :calendar.gregorian_seconds_to_datetime
+
+    this_pass = next_pass(satrec, new_time, observer)
+
+    list_passes(satrec, count - 1, observer, this_pass.end_time, passes ++ [this_pass])
+  end
+
+  defp list_passes_until(_satrec, _observer, start_datetime, end_datetime, passes) when start_datetime >= end_datetime, do: passes
+  defp list_passes_until(satrec, observer, start_datetime, end_datetime, passes) do
+    new_time = (:calendar.datetime_to_gregorian_seconds(start_datetime) + 1)
+              |> :calendar.gregorian_seconds_to_datetime
+
+    this_pass = next_pass(satrec, new_time, observer)
+    list_passes_until(satrec, observer, this_pass.end_time, end_datetime, passes ++ [this_pass])
+  end
+
   defp predict_for({{year, month, day}, {hour, min, sec}} = input_date,
                   %{longitude: _, latitude: _, height: _} = observer,
                   satellite_record) do
@@ -90,13 +108,8 @@ defmodule Satellite.Passes do
     #sunlit = sunlit?(positionEci, sun_position)
     sunlit = calculate_sunlit_status(positionEci, sun_position)
 
-    satmag = case Satellite.MagnitudeDatabase.lookup(satellite_record.satnum) do
-      {:ok, mag} -> mag
-      _ -> 0 
-    end
-
     magnitude = cond do
-      sunlit == true -> get_base_magnitude(satmag, positionEci, sun_position, observer, gmst)
+      sunlit == true -> get_base_magnitude(satellite_record.magnitude, positionEci, sun_position, observer, gmst)
       true -> 999 # Not sunlit, so set magnitude to something really faint
     end
 
@@ -205,7 +218,7 @@ defmodule Satellite.Passes do
     # End case - we are now at a negative elevation so return the datetime in local time
     local_date = :calendar.universal_time_to_local_time(start_date)
     {{yy, mm, dd},{h, m, s}} = local_date
-    Logger.debug "Test"
+    # Logger.debug "Test"
     IO.puts "*** END TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***"
     %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end

@@ -7,6 +7,10 @@ defmodule Satellite do
     Satellite.Passes.list_passes(satrec, count, observer, start_datetime)
   end
 
+  def list_passes_until(satrec, observer, start_datetime, end_datetime) do
+    Satellite.Passes.list_passes_until(satrec, observer, start_datetime, end_datetime)
+  end
+
   def next_pass(satrec, start_datetime, observer) do
     Satellite.Passes.next_pass(satrec, start_datetime, observer)
   end

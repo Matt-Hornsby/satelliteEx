@@ -5,8 +5,8 @@ defmodule Satellite.Application do
     import Supervisor.Spec
 
     children = [
-      worker(Satellite.SatelliteDatabase, []),
-      worker(Satellite.MagnitudeDatabase, [])
+      worker(Satellite.MagnitudeDatabase, []),
+      worker(Satellite.SatelliteDatabase, []), # <-- Must start after MagnitudeDatabase
     ]
 
     opts = [strategy: :one_for_one, name: Satellite.Supervisor]
