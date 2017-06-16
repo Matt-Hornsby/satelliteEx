@@ -74,11 +74,14 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   defp parse_tle_string(string) do
-    string
-    |> String.split("\n")
-    |> Stream.chunk(3)
-    |> Enum.map(&parse_entry/1)
-    |> Enum.map(&entry_to_satrec/1)
+    parsed_satrecs =
+      string
+      |> String.split("\n")
+      |> Stream.chunk(3)
+      |> Enum.map(&parse_entry/1)
+      |> Enum.map(&entry_to_satrec/1)
+
+    for {:ok, satrec} <- parsed_satrecs, do: satrec
   end
 
   defp parse_entry(tle_lines) do
@@ -92,7 +95,12 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   defp entry_to_satrec({name, tle1, tle2}) do
-    {:ok, satrec} = Satellite.TLE.to_satrec(tle1, tle2)
-    %{satrec | name: name}
+    case Satellite.TLE.to_satrec(tle1, tle2) do
+      {:ok, satrec} ->
+        {:ok, %{satrec | name: name}}
+      {:error, :invalid_tle} ->
+        Logger.warn("Invalid TLE format for '#{name}'")
+        {:error, :invalid_tle}
+    end
   end
 end
