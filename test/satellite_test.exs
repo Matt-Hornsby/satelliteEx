@@ -12,8 +12,8 @@ defmodule SatelliteTest do
     #tle_line_1 = "1 07530U 74089B   16195.86511907 -.00000024  00000-0  12706-3 0  9998"
     #tle_line_2 = "2 07530 101.5762 165.9737 0011522 259.3493 129.4719 12.53622068906466"
 
-    tle1 = Satellite.TLE.parse_line1(tle_line_1)
-    tle2 = Satellite.TLE.parse_line2(tle_line_2)
+    {:ok, tle1} = Satellite.TLE.parse_line1(tle_line_1)
+    {:ok, tle2} = Satellite.TLE.parse_line2(tle_line_2)
 
     {
       :ok,
