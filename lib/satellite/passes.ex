@@ -77,11 +77,7 @@ defmodule Satellite.Passes do
   end
 
   def current_position(satrec, observer) do
-    now = :calendar.universal_time()
-    now_secs = :calendar.datetime_to_gregorian_seconds(now)
-    new_secs = now_secs + (3600 * 13) + (60 * 30)
-    new_dt = :calendar.gregorian_seconds_to_datetime(new_secs) |> :calendar.universal_time_to_local_time
-    predict_for(new_dt, observer, satrec)
+    predict_for(:calendar.universal_time, observer, satrec)
   end
 
   #
@@ -116,6 +112,7 @@ defmodule Satellite.Passes do
     positionEci = positionAndVelocity.position
     #velocityEci = positionAndVelocity.velocity
     positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
+    geodetic = CoordinateTransforms.eci_to_geodetic(positionEci, gmst)
     lookAngles = CoordinateTransforms.ecf_to_look_angles(observer, positionEcf)
     sun_position = get_position_at(input_date, observer)
     #sunlit = sunlit?(positionEci, sun_position)
@@ -138,7 +135,10 @@ defmodule Satellite.Passes do
       sunlit?: sunlit,
       satellite_magnitude: magnitude,
       min_wp: adjusted_magnitude,
-      sun_position: sun_position
+      sun_position: sun_position,
+      latitude: geodetic.latitude * Constants.rad2deg,
+      longitude: geodetic.longitude * Constants.rad2deg,
+      height: geodetic.height,
     }
   end
 

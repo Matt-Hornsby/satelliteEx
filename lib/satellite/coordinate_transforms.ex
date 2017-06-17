@@ -57,10 +57,6 @@ defmodule Satellite.CoordinateTransforms do
     %{ x: x, y: y, z: z, local_geo_rad: local_geo_rad, geo_lat: geo_lat}
   end
 
-  #
-  # TODO: Remove these methods below?
-  #
-
   def eci_to_geodetic(eciCoords, gmst) do
     a   = 6378.137
     b   = 6356.7523142
@@ -68,18 +64,14 @@ defmodule Satellite.CoordinateTransforms do
     f   = (a - b)/a
     e2  = ((2 * f) - (f * f))
     longitude = :math.atan2(eciCoords.y, eciCoords.x) - gmst
+    # Adding to get sign correct:
+    longitude = if longitude < 0, do: longitude + Constants.two_pi, else: longitude
     kmax = 20
     k = 0
     latitude = :math.atan2(eciCoords.z, :math.sqrt(eciCoords.x * eciCoords.x + eciCoords.y * eciCoords.y))
 
-    iteration_params = %{a: a, b: b, r: r, f: f, e2: e2, longitude: longitude, latitude: latitude, eci_z: eciCoords.z}
+    iteration_params = %{a: a, b: b, c: 0, r: r, f: f, e2: e2, latitude: latitude, eci_z: eciCoords.z}
     result = iterate_latitude(iteration_params, k, kmax)
-
-    #while (k < kmax) do
-    #    c = 1 / :math.sqrt(1 - e2 * (:math.sin(latitude) * :math.sin(latitude)))
-    #    latitude = :math.atan2(eciCoords.z + (a * c * e2 * :math.sin(latitude)), r)
-    #    k = k + 1
-    #end
 
     height = (r / :math.cos(result.latitude)) - (a * result.c)
     %{longitude: longitude, latitude: result.latitude, height: height }
@@ -87,9 +79,10 @@ defmodule Satellite.CoordinateTransforms do
 
   def iterate_latitude(iteration_params, k, kmax) when k < kmax do
     c = 1 / :math.sqrt(1 - iteration_params.e2 * (:math.sin(iteration_params.latitude) * :math.sin(iteration_params.latitude)))
-    iteration_params = %{iteration_params | latitude: :math.atan2(iteration_params.eci_z + (iteration_params.a * c * iteration_params.e2 * :math.sin(iteration_params.latitude)), iteration_params.r)}
+    iteration_params = %{iteration_params | c: c, latitude: :math.atan2(iteration_params.eci_z + (iteration_params.a * c * iteration_params.e2 * :math.sin(iteration_params.latitude)), iteration_params.r)}
     iterate_latitude(iteration_params, k + 1, kmax)
   end
+  def iterate_latitude(iteration_params, _, _), do: iteration_params
 
   def iteration_params(iteration_params, _k, _kmax), do: %{a: iteration_params.c, latitude: iteration_params.latitude}
 end
