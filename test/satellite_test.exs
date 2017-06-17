@@ -1,6 +1,7 @@
 defmodule SatelliteTest do
   use ExUnit.Case
-  import Satellite.DatetimeConversions
+  import Satellite.Dates
+  alias Satellite.CoordinateTransforms
   doctest Satellite
 
   setup_all do
@@ -11,8 +12,8 @@ defmodule SatelliteTest do
     #tle_line_1 = "1 07530U 74089B   16195.86511907 -.00000024  00000-0  12706-3 0  9998"
     #tle_line_2 = "2 07530 101.5762 165.9737 0011522 259.3493 129.4719 12.53622068906466"
 
-    tle1 = Satellite.Twoline_To_Satrec.extract_tle1(tle_line_1)
-    tle2 = Satellite.Twoline_To_Satrec.extract_tle2(tle_line_2)
+    {:ok, tle1} = Satellite.TLE.parse_line1(tle_line_1)
+    {:ok, tle2} = Satellite.TLE.parse_line2(tle_line_2)
 
     {
       :ok,
@@ -24,7 +25,7 @@ defmodule SatelliteTest do
   end
 
   test "propagate", state do
-    {:ok, satrec} = Satellite.Twoline_To_Satrec.twoline_to_satrec(state[:tle_line_1], state[:tle_line_2])
+    {:ok, satrec} = Satellite.TLE.to_satrec(state[:tle_line_1], state[:tle_line_2])
     positionAndVelocity = Satellite.SGP4.propagate(satrec, 2017, 1, 1, 1, 1, 1)
     positionEci = positionAndVelocity.position
     velocityEci = positionAndVelocity.velocity
@@ -38,9 +39,9 @@ defmodule SatelliteTest do
 
     gmst = gstime(jday(2017,1,1,1,1,1))
     positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
-    observerEcf = CoordinateTransforms.geodetic_to_ecf(observerGd)
+    # observerEcf = CoordinateTransforms.geodetic_to_ecf(observerGd)
     #positionGd = satellite.eciToGeodetic(positionEci, gmst)
-    lookAngles = CoordinateTransforms.ecfToLookAngles(observerGd, positionEcf)
+    lookAngles = CoordinateTransforms.ecf_to_look_angles(observerGd, positionEcf)
 
     tolerance = 0.0000001
     assert_in_delta positionEci.x, -1598.9224945568021, tolerance
@@ -71,7 +72,7 @@ defmodule SatelliteTest do
             method: 'n',
             opsmode: 'i'
         }
-    initlResult = Satellite.Initl.initl(initlParameters)
+    initlResult = Satellite.SGP4.Init.initl(initlParameters)
     assert initlResult.ainv === 0.938835647692083
     assert initlResult.ao === 1.0651491583838724
     assert initlResult.con41 === 0.15500182798076345

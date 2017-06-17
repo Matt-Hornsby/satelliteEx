@@ -8,7 +8,7 @@ defmodule Satellite.MagnitudeDatabase do
   """
   def start_link do
     IO.puts "Starting magnitude database"
-    GenServer.start_link(__MODULE__, :ok, name: :magnitude_database)
+    GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
   @doc """
@@ -23,7 +23,7 @@ defmodule Satellite.MagnitudeDatabase do
 
   """
   def lookup(norad_id) do
-    GenServer.call(:magnitude_database, {:lookup, norad_id})
+    GenServer.call(__MODULE__, {:lookup, norad_id})
   end
 
   @doc """
@@ -36,13 +36,18 @@ defmodule Satellite.MagnitudeDatabase do
 
   """
   def all_satellites() do
-    GenServer.call(:magnitude_database, {:all_satellites})
+    GenServer.call(__MODULE__, {:all_satellites})
   end
 
   ## Server Callbacks
 
   def init(:ok) do
-    magnitudes = File.stream!("satmag.txt") |> parse_satmag_stream
+    magnitudes = 
+      :code.priv_dir(:satellite)
+      |> Path.join("satmag.txt")
+      |> File.stream!
+      |> parse_satmag_stream
+
     {:ok, magnitudes}
   end
 

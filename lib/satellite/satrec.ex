@@ -1,5 +1,7 @@
 defmodule Satrec do
-  defstruct satnum: nil,
+  defstruct name: nil,
+            magnitude: 0.0,
+            satnum: nil,
             epochyr: nil,
             epochdays: nil,
             ndot: nil,

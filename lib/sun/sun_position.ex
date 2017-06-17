@@ -1,8 +1,11 @@
 defmodule Sun.SunPosition do
+  require Satellite.Constants
+  alias Satellite.Constants
+
   def get_position_at({{year, month, day}, {hour, min, sec}}, observerGd) do
-    julian_date = Satellite.DatetimeConversions.jday(year, month, day, hour, min, sec)
+    julian_date = Satellite.Dates.jday(year, month, day, hour, min, sec)
     sp = Sun.Orbit.calculate_sun_position_at(julian_date)
-    sidereal_angle = Satellite.DatetimeConversions.gstime(julian_date)
+    sidereal_angle = Satellite.Dates.gstime(julian_date)
     sun_longitude = sp.right_ascension - sidereal_angle
 
     x_plane = :math.cos(sp.declination) * :math.cos(sp.right_ascension)

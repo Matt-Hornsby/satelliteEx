@@ -1,13 +1,16 @@
 defmodule Sun.Orbit do
+  require Satellite.Constants
+  alias Satellite.Constants
+
   def calculate_sun_position_at(julian_date) do
-    position = %{ra: 0.0, declination: 0.0}
+    # position = %{ra: 0.0, declination: 0.0}
 
     d0 = julian_date - 2451545
     m0 = 357.529 + 0.98560028 * d0 |> reduce
     l0 = 280.459 + 0.98564736 * d0 |> reduce
     l0 = l0 + 1.915 * :math.sin(m0 / 180 * Constants.pi) + 0.02 * :math.sin(2 * m0 / 180 * Constants.pi)
 
-    r = 1.00014 - 0.01671 * :math.cos(m0 / 180 * Constants.pi) - 0.00014 * :math.cos(2 * m0 / 180 * Constants.pi)
+    # r = 1.00014 - 0.01671 * :math.cos(m0 / 180 * Constants.pi) - 0.00014 * :math.cos(2 * m0 / 180 * Constants.pi)
     e = 23.439 - 0.00000036 * d0 |> reduce
 
     declination = :math.asin(:math.sin(e / 180 * Constants.pi) * :math.sin(l0 / 180 * Constants.pi))

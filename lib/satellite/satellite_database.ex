@@ -1,5 +1,11 @@
 defmodule Satellite.SatelliteDatabase do
   use GenServer
+  require Logger
+
+  @sources [
+    {Satellite.Sources.Amsat, []},
+    {Satellite.Sources.Celestrak, ["Visual"]},
+  ]
 
   ## Client API
 
@@ -7,52 +13,101 @@ defmodule Satellite.SatelliteDatabase do
   Starts the database.
   """
   def start_link do
-    IO.puts "Starting satellite database"
-    GenServer.start_link(__MODULE__, :ok, name: :satellite_database)
+    Logger.info "Starting satellite database"
+    GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
-  def lookup(satellite_name) do
-   GenServer.call(:satellite_database, {:lookup, satellite_name})
- end
+  def lookup(satellite_name) when is_binary(satellite_name) do
+    GenServer.call(__MODULE__, {:lookup, satellite_name})
+  end
+  def lookup(number) when is_integer(number) do
+    GenServer.call(__MODULE__, {:lookup_number, number})
+  end
+
+  def list do
+    GenServer.call(__MODULE__, :list)
+  end
 
  ## Server API
 
- def init(:ok) do
-   # Open and parse file
-   satellites = "Visual" |> parse_local_tle
-  {:ok, satellites}
-end
+  def init(:ok) do
+    # Download and parse TLEs from sources
+    sat_map =
+      @sources
+      |> Stream.map(&load_satrecs/1)
+      |> Enum.to_list
+      |> List.flatten
+      |> Enum.map(&{&1.satnum, &1})
+      |> Enum.into(%{})
 
-def handle_call({:lookup, satellite_name}, _from, satellites) do
-  satellite = satellites
-       |> Enum.filter(&(&1.satellite_name == satellite_name))
-       |> Enum.at(0)
-  {:reply, satellite, satellites}
-end
+    {:ok, sat_map}
+  end
 
-defp parse_local_tle(tle_name) do
-  File.stream!("#{tle_name}.txt") |> parse_tle_stream
-end
+  def handle_call({:lookup, name}, _from, satellites) do
+    satellite = 
+      satellites
+      |> Map.values
+      |> Enum.find(&(&1.name == name))
 
-defp parse_tle_stream(tle_stream) do
-  tle_stream |> Stream.chunk(3) |> Enum.map(&parse_satellite/1) |> Enum.map(&to_satrec/1)
-end
+    {:reply, satellite, satellites}
+  end
+  def handle_call({:lookup_number, number}, _from, satellites) do
+    {:reply, satellites[number], satellites}
+  end
 
-defp parse_satellite(tle_lines) do
-  [satellite_name | tail] = tle_lines   # line 1 - satellite name
-  [tle_line_1 | tail] = tail            # line 2 - TLE line 1
-  [tle_line_2 | []] = tail              # line 3 - TLE line 2
+  def handle_call(:list, _from, satellites) do
+    {:reply, Map.values(satellites), satellites}
+  end
 
-  %{
-    satellite_name: String.trim(satellite_name),
-    tle_line_1: String.trim(tle_line_1),
-    tle_line_2: String.trim(tle_line_2)
-  }
-end
+  ## Private
 
-defp to_satrec(satellite_map) do
-  {:ok, satrec} = Satellite.Twoline_To_Satrec.twoline_to_satrec(satellite_map.tle_line_1, satellite_map.tle_line_2)
-  %{satellite_name: satellite_map.satellite_name, satrec: satrec}
-end
+  defp load_satrecs({source, args}) do
+    with {:ok, body} <- apply(source, :download, args) do
+      satrecs = parse_tle_string(body)
+      Logger.info("Added #{Enum.count(satrecs)} satellites")
+      satrecs
+    else
+      _ ->
+        Logger.warn("Error downloading from #{source}")
+        []
+    end
+  end
 
+  defp parse_tle_string(string) do
+    parsed_satrecs =
+      string
+      |> String.split("\n")
+      |> Stream.chunk(3)
+      |> Enum.map(&parse_entry/1)
+      |> Enum.map(&entry_to_satrec/1)
+
+    for {:ok, satrec} <- parsed_satrecs, do: satrec
+  end
+
+  defp parse_entry(tle_lines) do
+    [satellite_name, tle_line_1, tle_line_2] = tle_lines
+
+    {
+      String.trim(satellite_name),
+      String.trim(tle_line_1),
+      String.trim(tle_line_2)
+    }
+  end
+
+  defp entry_to_satrec({name, tle1, tle2}) do
+    case Satellite.TLE.to_satrec(tle1, tle2) do
+      {:ok, satrec} ->
+        {:ok, put_magnitude(%{satrec | name: name})}
+      {:error, :invalid_tle} ->
+        Logger.warn("Invalid TLE format for '#{name}'")
+        {:error, :invalid_tle}
+    end
+  end
+
+  defp put_magnitude(satrec) do
+    case Satellite.MagnitudeDatabase.lookup(satrec.satnum) do
+      {:ok, magnitude} -> %{satrec | magnitude: magnitude}
+      _ -> satrec
+    end
+  end
 end
