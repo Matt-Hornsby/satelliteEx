@@ -46,6 +46,13 @@ defmodule Satellite.Passes do
       start_prediction = predict_for(pass.start_of_pass.datetime, observer, satrec)
       end_prediction = predict_for(pass.end_of_pass.datetime, observer, satrec)
 
+      # Calculate peak by predicting halfway through the pass
+      start_seconds = :calendar.datetime_to_gregorian_seconds(start_prediction.datetime)
+      end_seconds = :calendar.datetime_to_gregorian_seconds(end_prediction.datetime)
+      max_seconds = trunc((start_seconds + end_seconds) / 2)
+      max_datetime = :calendar.gregorian_seconds_to_datetime(max_seconds)
+      max_prediction = predict_for(max_datetime, observer, satrec)
+
       best_part_of_pass = brightest_part_of_pass(
           pass.start_of_pass.datetime, pass.end_of_pass.datetime, observer, satrec, start_prediction)
 
@@ -60,7 +67,12 @@ defmodule Satellite.Passes do
         end_magnitude: end_prediction.satellite_magnitude,
         best_part_of_pass: best_part_of_pass,
         visibility: visibility,
-        satnum: satrec.satnum
+
+        # Added:
+        satnum: satrec.satnum,
+        aos: start_prediction,
+        max: max_prediction,
+        los: end_prediction,
       }
   end
 
@@ -111,7 +123,7 @@ defmodule Satellite.Passes do
 
     magnitude = cond do
       sunlit == true -> get_base_magnitude(satellite_record.magnitude, positionEci, sun_position, observer, gmst)
-      true -> 999 # Not sunlit, so set magnitude to something really faint
+      true -> 999.0 # Not sunlit, so set magnitude to something really faint
     end
 
     adjusted_magnitude = magnitude
