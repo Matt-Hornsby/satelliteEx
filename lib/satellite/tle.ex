@@ -29,13 +29,13 @@ defmodule Satellite.TLE do
 
       #revnum = tle2.revolutions
 
-      satrec = %{satrec | a: :math.pow(satrec.no * Constants.tumin, (-2.0 / 3.0))}
+      satrec = %{satrec | a: :math.pow(satrec.no * Constants.tumin(), (-2.0 / 3.0))}
       satrec = %{satrec | ndot: satrec.ndot / (@xpdotp * 1440.0)}
       satrec = %{satrec | ndot: satrec.nddot / (@xpdotp * 1440.0 * 1440.0)}
-      satrec = %{satrec | inclo: satrec.inclo * Constants.degtorad()}
-      satrec = %{satrec | nodeo: satrec.nodeo * Constants.degtorad()}
-      satrec = %{satrec | argpo: satrec.argpo * Constants.degtorad()}
-      satrec = %{satrec | mo: satrec.mo * Constants.degtorad()}
+      satrec = %{satrec | inclo: satrec.inclo * Constants.deg2rad()}
+      satrec = %{satrec | nodeo: satrec.nodeo * Constants.deg2rad()}
+      satrec = %{satrec | argpo: satrec.argpo * Constants.deg2rad()}
+      satrec = %{satrec | mo: satrec.mo * Constants.deg2rad()}
       satrec = %{satrec | alta: satrec.a * (1.0 + satrec.ecco) - 1.0}
       satrec = %{satrec | altp: satrec.a * (1.0 - satrec.ecco) - 1.0}
 

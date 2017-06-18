@@ -17,7 +17,7 @@ defmodule Sun.SunlightCalculations do
             satellite_position.z * satellite_position.z -
             k * k)
     cond do
-      new_k > Constants.earth_radius() -> true
+      new_k > Constants.earth_radius_semimajor() -> true
       true -> false
     end
   end
@@ -35,9 +35,9 @@ defmodule Sun.SunlightCalculations do
     observer_geoc_y = :math.cos(observer_geocentric.geo_lat) * :math.sin(observer_position.longitude)
     observer_geoc_z = :math.sin(observer_geocentric.geo_lat)
 
-    qx = satellite_position.x - observer_geoc_x * Constants.earth_radius() * :math.cos(-sidereal_angle) - observer_geoc_y * Constants.earth_radius() * :math.sin(-sidereal_angle)
-    qy = satellite_position.y + observer_geoc_x * Constants.earth_radius() * :math.sin(-sidereal_angle) - observer_geoc_y * Constants.earth_radius() * :math.cos(-sidereal_angle)
-    qz = satellite_position.z - observer_geoc_z * Constants.earth_radius()
+    qx = satellite_position.x - observer_geoc_x * Constants.earth_radius_semimajor() * :math.cos(-sidereal_angle) - observer_geoc_y * Constants.earth_radius_semimajor() * :math.sin(-sidereal_angle)
+    qy = satellite_position.y + observer_geoc_x * Constants.earth_radius_semimajor() * :math.sin(-sidereal_angle) - observer_geoc_y * Constants.earth_radius_semimajor() * :math.cos(-sidereal_angle)
+    qz = satellite_position.z - observer_geoc_z * Constants.earth_radius_semimajor()
 
     range =  :math.sqrt(qx * qx + qy * qy + qz * qz)
     cospa = (x1sun * qx + y1sun * qy + z1sun * qz) / vlsun / range

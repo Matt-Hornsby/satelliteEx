@@ -9,7 +9,7 @@ defmodule Satellite.SGP4.Model do
 
   def calculate(satrec, tsince) do
     #temp4 = 1.5e-12
-    vkmpersec = Constants.earth_radius * Constants.xke / 60.0
+    vkmpersec = Constants.earth_radius_semimajor * Constants.xke / 60.0
 
     satrec = %{satrec | t: tsince}
     satrec = %{satrec | error: 0}
@@ -183,9 +183,9 @@ defmodule Satellite.SGP4.Model do
 
     #  --------- position and velocity (in km and km/sec) ----------
     r = %{x: 0.0, y: 0.0, z: 0.0}
-    r = %{r | x: (mrt * ux) * Constants.earth_radius}
-    r = %{r | y: (mrt * uy) * Constants.earth_radius}
-    r = %{r | z: (mrt * uz) * Constants.earth_radius}
+    r = %{r | x: (mrt * ux) * Constants.earth_radius_semimajor}
+    r = %{r | y: (mrt * uy) * Constants.earth_radius_semimajor}
+    r = %{r | z: (mrt * uz) * Constants.earth_radius_semimajor}
 
     v = %{x: 0.0, y: 0.0, z: 0.0}
     v = %{v | x: (mvt * ux + rvdot * vx) * vkmpersec}
