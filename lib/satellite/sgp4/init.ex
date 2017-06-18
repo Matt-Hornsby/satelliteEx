@@ -49,8 +49,8 @@ defmodule Satellite.SGP4.Init do
     # ------------------------ earth constants -----------------------
     # sgp4fix identify constants and allow alternate values
 
-    ss = 78.0 / Constants.earth_radius + 1.0
-    qzms2ttemp = (120.0 - 78.0) / Constants.earth_radius
+    ss = 78.0 / Constants.earth_radius_semimajor + 1.0
+    qzms2ttemp = (120.0 - 78.0) / Constants.earth_radius_semimajor
     qzms2t = qzms2ttemp * qzms2ttemp * qzms2ttemp * qzms2ttemp
     x2o3 = 2.0 / 3.0
 
@@ -89,7 +89,7 @@ defmodule Satellite.SGP4.Init do
       if (omeosq >= 0.0 || satrec.no >= 0.0) do
 
         isimp = cond do
-          (rp < 220.0 / Constants.earth_radius + 1.0) -> 1
+          (rp < 220.0 / Constants.earth_radius_semimajor + 1.0) -> 1
           true -> 0
         end
 
@@ -97,7 +97,7 @@ defmodule Satellite.SGP4.Init do
 
         sfour = ss
         qzms24 = qzms2t
-        perige = (rp - 1.0) * Constants.earth_radius
+        perige = (rp - 1.0) * Constants.earth_radius_semimajor
 
         # TODO NEED TO TEST THIS REFACTORING
         #  - for perigees below 156 km, s and qoms2t are altered -
@@ -107,9 +107,9 @@ defmodule Satellite.SGP4.Init do
         #        sfour = 20.0
         #    end
         #    #  sgp4fix use multiply for speed instead of pow
-        #    qzms24temp =  (120.0 - sfour) / Constants.earth_radius
+        #    qzms24temp =  (120.0 - sfour) / Constants.earth_radius_semimajor
         #    qzms24 = qzms24temp * qzms24temp * qzms24temp * qzms24temp
-        #    sfour = sfour / Constants.earth_radius + 1.0
+        #    sfour = sfour / Constants.earth_radius_semimajor + 1.0
         #end
         {sfour, qzms24} = adjust_for_low_perigee(perige, sfour, qzms24)
 
@@ -296,9 +296,9 @@ defmodule Satellite.SGP4.Init do
     end
 
     #  sgp4fix use multiply for speed instead of pow
-    qzms24temp =  (120.0 - sfour) / Constants.earth_radius
+    qzms24temp =  (120.0 - sfour) / Constants.earth_radius_semimajor
     qzms24 = qzms24temp * qzms24temp * qzms24temp * qzms24temp
-    sfour = sfour / Constants.earth_radius + 1.0
+    sfour = sfour / Constants.earth_radius_semimajor + 1.0
     {sfour, qzms24}
   end
 

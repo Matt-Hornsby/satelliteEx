@@ -9,13 +9,7 @@ defmodule Satellite.CoordinateTransforms do
     %{ x: x, y: y, z: z }
   end
 
-  def ecf_to_look_angles(observerCoordsEcf, satelliteCoordsEcf) do
-    longitude   = observerCoordsEcf.longitude
-    latitude    = observerCoordsEcf.latitude
-
-    # TODO: defined but never used
-    # height = observerCoordsEcf.height
-
+  def ecf_to_look_angles(%Observer{latitude: latitude, longitude: longitude} = observerCoordsEcf, satelliteCoordsEcf) do
     observerEcf = geodetic_to_ecf(observerCoordsEcf)
     rx = satelliteCoordsEcf.x - observerEcf.x
     ry = satelliteCoordsEcf.y - observerEcf.y
@@ -43,8 +37,8 @@ defmodule Satellite.CoordinateTransforms do
     longitude = geodetic_coords.longitude
     latitude = geodetic_coords.latitude
     height = geodetic_coords.height
-    a = 6378.137
-    b = 6356.7523142
+    a = Satellite.Constants.earth_radius_semimajor
+    b = Satellite.Constants.earth_radius_semiminor
     f = (a - b)/a
     e2 = ((2*f) - (f*f))
     normal = a / :math.sqrt( 1 - (e2*(:math.sin(latitude)*:math.sin(latitude))))
@@ -58,8 +52,8 @@ defmodule Satellite.CoordinateTransforms do
   end
 
   def eci_to_geodetic(eciCoords, gmst) do
-    a   = 6378.137
-    b   = 6356.7523142
+    a   = Satellite.Constants.earth_radius_semimajor
+    b   = Satellite.Constants.earth_radius_semiminor
     r   = :math.sqrt( (eciCoords.x * eciCoords.x) + (eciCoords.y * eciCoords.y) )
     f   = (a - b)/a
     e2  = ((2 * f) - (f * f))
