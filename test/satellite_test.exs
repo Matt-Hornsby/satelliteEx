@@ -30,12 +30,7 @@ defmodule SatelliteTest do
     positionEci = positionAndVelocity.position
     velocityEci = positionAndVelocity.velocity
 
-
-    deg2rad = :math.pi/180
-    observerGd = %{
-       longitude: -122.0308 * deg2rad,
-       latitude: 36.9613422 * deg2rad,
-       height: 0.370}
+    observerGd = Observer.create_from(36.9613422, -122.0308, 0.370)
 
     gmst = gstime(jday(2017,1,1,1,1,1))
     positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)

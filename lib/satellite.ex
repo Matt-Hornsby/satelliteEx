@@ -39,17 +39,7 @@ defmodule Satellite do
     next_pass(iss_satrec(), start_datetime, observer)
   end
 
-  defp iss_satrec do
-    Satellite.SatelliteDatabase.lookup(25544)
-  end
+  defp seattle_observer, do: Observer.KnownLocations.seattle
+  defp iss_satrec, do: Satellite.SatelliteDatabase.lookup(25544)
 
-  defp seattle_observer do
-    require Satellite.Constants
-
-    %Satellite.Observer{
-      longitude: -122.3321 * Satellite.Constants.deg2rad,
-      latitude: 47.6062 * Satellite.Constants.deg2rad,
-      height: 0.370
-    }
-  end
 end
