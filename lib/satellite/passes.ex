@@ -127,6 +127,8 @@ defmodule Satellite.Passes do
                           |> adjust_magnutide_for_low_elevation(lookAngles.elevation * Constants.rad2deg)
                           |> adjust_magnitude_for_sunset(sun_position.elevation_radians)
 
+    footprint_radius = calculate_footprint_radius(geodetic.height)
+
     %{
       datetime: input_date,
       elevation_in_degrees: lookAngles.elevation * Constants.rad2deg,
@@ -139,7 +141,15 @@ defmodule Satellite.Passes do
       latitude: geodetic.latitude * Constants.rad2deg,
       longitude: geodetic.longitude * Constants.rad2deg,
       height: geodetic.height,
+      footprint_radius: footprint_radius
     }
+  end
+
+  defp calculate_footprint_radius(satellite_height) do
+    tangent = :math.sqrt(satellite_height * (satellite_height + 2 * 6375))
+    centerAngle = :math.asin(tangent / (6375 + satellite_height))
+    footPrintRadius = 6375 * centerAngle # km
+    footPrintRadius
   end
 
   defp visibility(sun_elevation, _satellite_magnitude) when sun_elevation > 0.0, do: [:not_visible, :none]
