@@ -14,5 +14,6 @@ defmodule Satellite.Constants do
   defmacro rad2deg, do: 180.0 / pi()
   defmacro j3oj2, do: j3() / j2()
   defmacro minutes_per_day, do: 1440.0
+  defmacro seconds_per_day, do: minutes_per_day() * 60
   defmacro astronomical_unit, do: 149597892000 
 end

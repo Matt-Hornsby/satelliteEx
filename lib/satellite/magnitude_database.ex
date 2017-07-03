@@ -1,5 +1,6 @@
 defmodule Satellite.MagnitudeDatabase do
   use GenServer
+  require Logger
 
   ## Client API
 
@@ -7,7 +8,7 @@ defmodule Satellite.MagnitudeDatabase do
   Starts the database.
   """
   def start_link do
-    IO.puts "Starting magnitude database"
+    Logger.info "Starting magnitude database"
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
