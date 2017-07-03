@@ -1,7 +1,6 @@
 defmodule Satellite.SatelliteDatabase do
   use GenServer
   require Logger
-  require Satellite.Dates
 
   @sourceUrls [
     {'http://www.amsat.org/amsat/ftp/keps/current/', 'nasabare.txt'},
@@ -57,11 +56,10 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   def handle_info(:update_tle, state) do
-    # Do the work you desire here
     Logger.info "Updating tle data on schedule"
-    fetch_satellites()
-    schedule_tle_update() # Reschedule once more
-    {:noreply, state}
+    {:ok, satellites} = fetch_satellites()
+    schedule_tle_update() # Reschedule
+    {:noreply, satellites}
   end
 
   ## Private
@@ -152,7 +150,7 @@ defmodule Satellite.SatelliteDatabase do
     last_modified_time_seconds = :calendar.datetime_to_gregorian_seconds(last_modified_time)
     #Logger.debug("File last modified: #{last_modified_time_seconds}")
     now = :calendar.universal_time() |> :calendar.datetime_to_gregorian_seconds()
-    good_until = now + Satellite.Dates.hours_to_seconds(cache_ttl)
+    good_until = now + (cache_ttl * 60 * 60)
     #Logger.debug("Cache good until: #{good_until}")
     last_modified_time_seconds >= good_until
   end

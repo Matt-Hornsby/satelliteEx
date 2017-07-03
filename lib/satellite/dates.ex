@@ -73,10 +73,4 @@ defmodule Satellite.Dates do
       true -> temp
     end
   end
-
-  def hours_to_seconds(hours) do
-    hours 
-      * 60 # minutes per hour
-      * 60 # seconds per minute
-  end
 end
