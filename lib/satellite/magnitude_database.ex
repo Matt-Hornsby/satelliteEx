@@ -36,15 +36,16 @@ defmodule Satellite.MagnitudeDatabase do
       iex> Satellite.MagnitudeDatabase.all_satellites(pid)
 
   """
-  def all_satellites() do
+  def all_satellites do
     GenServer.call(__MODULE__, {:all_satellites})
   end
 
   ## Server Callbacks
 
   def init(:ok) do
-    magnitudes = 
-      :code.priv_dir(:satellite)
+    magnitudes =
+      :satellite
+      |> :code.priv_dir
       |> Path.join("satmag.txt")
       |> File.stream!
       |> parse_satmag_stream

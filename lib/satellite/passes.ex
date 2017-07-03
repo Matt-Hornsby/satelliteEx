@@ -1,18 +1,13 @@
 defmodule Satellite.Passes do
   @moduledoc """
-  This module provides functionality to pull satellite orbit information from
-  Celestrak and to predict visible satellite passes from a specified location
-  on Earth.
+  Provides a set of algorithms to predict satellite passes over
+  any location on Earth.
 
   ## Examples
 
   iss_satrec = Satellite.SatelliteDatabase.lookup("ISS (ZARYA)")
-  seattle = %Observer{
-    longitude: -122.3321 * Constants.deg2rad,
-    latitude: 47.6062 * Constants.deg2rad,
-    height: 0.370
-  }
-  Satellite.Passes.current_position({{2016, 12, 24}, {12, 12, 12}}, seattle, iss_satrec)
+  seattle = Observer.KnownLocations.seattle
+  Satellite.Passes.current_position(iss_satrec, seattle)
   """
 
   require Satellite.Constants
@@ -86,8 +81,10 @@ defmodule Satellite.Passes do
 
   defp list_passes(_satrec, 0, _observer, _start_datetime, passes), do: passes
   defp list_passes(satrec, count, observer, start_datetime, passes) do
-    new_time = (:calendar.datetime_to_gregorian_seconds(start_datetime) + 1)
-              |> :calendar.gregorian_seconds_to_datetime
+    new_time = start_datetime |>
+      :calendar.datetime_to_gregorian_seconds |>
+      Kernel.+(1) |>
+      :calendar.gregorian_seconds_to_datetime
 
     this_pass = next_pass(satrec, new_time, observer)
 
@@ -96,47 +93,61 @@ defmodule Satellite.Passes do
 
   defp list_passes_until(_satrec, _observer, start_datetime, end_datetime, passes) when start_datetime >= end_datetime, do: passes
   defp list_passes_until(satrec, observer, start_datetime, end_datetime, passes) do
-    new_time = (:calendar.datetime_to_gregorian_seconds(start_datetime) + 1)
-              |> :calendar.gregorian_seconds_to_datetime
+
+    new_time = start_datetime |>
+      :calendar.datetime_to_gregorian_seconds |>
+      Kernel.+(1) |>
+      :calendar.gregorian_seconds_to_datetime
 
     this_pass = next_pass(satrec, new_time, observer)
     list_passes_until(satrec, observer, this_pass.end_time, end_datetime, passes ++ [this_pass])
   end
 
   defp predict_for({{year, month, day}, {hour, min, sec}} = input_date,
-                  %{longitude: _, latitude: _, height: _} = observer,
+                  %Observer{longitude: _, latitude: _, height: _} = observer,
                   satellite_record) do
 
-    gmst = gstime(jday(year,month,day,hour,min,sec))
-    positionAndVelocity = Satellite.SGP4.propagate(satellite_record,year,month,day,hour,min,sec)
-    positionEci = positionAndVelocity.position
-    #velocityEci = positionAndVelocity.velocity
-    positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
-    geodetic = CoordinateTransforms.eci_to_geodetic(positionEci, gmst)
-    lookAngles = CoordinateTransforms.ecf_to_look_angles(observer, positionEcf)
+    gmst = gstime(jday(input_date))
+    position_and_velocity = Satellite.SGP4.propagate(satellite_record, {{year, month, day}, {hour, min, sec}})
+    position_eci = position_and_velocity.position
+    #velocityEci = position_and_velocity.velocity
+    position_ecf = CoordinateTransforms.eci_to_ecf(position_eci, gmst)
+    geodetic = CoordinateTransforms.eci_to_geodetic(position_eci, gmst)
+    look_angles = CoordinateTransforms.ecf_to_look_angles(observer, position_ecf)
     sun_position = get_position_at(input_date, observer)
-    #sunlit = sunlit?(positionEci, sun_position)
-    sunlit = calculate_sunlit_status(positionEci, sun_position)
+    sunlit = calculate_sunlit_status(position_eci, sun_position)
 
-    magnitude = cond do
-      sunlit == true -> get_base_magnitude(satellite_record.magnitude, positionEci, sun_position, observer, gmst)
-      true -> 999.0 # Not sunlit, so set magnitude to something really faint
-    end
+    magnitude =
+      if sunlit == true do
+          get_base_magnitude(satellite_record.magnitude, position_eci, sun_position, observer, gmst)
+        else
+          999.0 # Not sunlit, so set magnitude to something really faint
+      end
 
     adjusted_magnitude = magnitude
-                          |> adjust_magnutide_for_low_elevation(lookAngles.elevation * Constants.rad2deg)
+                          |> adjust_magnutide_for_low_elevation(look_angles.elevation * Constants.rad2deg)
                           |> adjust_magnitude_for_sunset(sun_position.elevation_radians)
+
+    magnitude_data = calculate_magnitude(position_eci, satellite_record.magnitude, sun_position, observer, gmst, look_angles.elevation)
+    
+    comparison = [sunlit, magnitude_data.sunlit, magnitude, magnitude_data.base_magnitude, adjusted_magnitude, magnitude_data.adjusted_magnitude]
+    if sunlit != magnitude_data.sunlit, do: Logger.warn("sunlit: #{sunlit} | #{magnitude_data.sunlit}")
+    if magnitude != magnitude_data.base_magnitude, do: Logger.warn("magnitude: #{magnitude} | #{magnitude_data.base_magnitude}")
+    if adjusted_magnitude != magnitude_data.adjusted_magnitude do
+      Logger.warn("adjusted: #{adjusted_magnitude} | #{magnitude_data.adjusted_magnitude}")
+      Logger.info "#{inspect position_eci} #{satellite_record.magnitude} #{sun_position.elevation_radians} #{inspect observer} #{inspect gmst} #{look_angles.elevation}"
+    end
 
     footprint_radius = calculate_footprint_radius(geodetic.height)
 
     %{
       datetime: input_date,
-      elevation_in_degrees: lookAngles.elevation * Constants.rad2deg,
-      azimuth_in_degrees: lookAngles.azimuth * Constants.rad2deg,
-      range: lookAngles.rangeSat,
-      sunlit?: sunlit,
-      satellite_magnitude: magnitude,
-      min_wp: adjusted_magnitude,
+      elevation_in_degrees: look_angles.elevation * Constants.rad2deg,
+      azimuth_in_degrees: look_angles.azimuth * Constants.rad2deg,
+      range: look_angles.range_sat,
+      sunlit?: magnitude_data.sunlit,
+      satellite_magnitude: magnitude_data.base_magnitude,
+      min_wp: magnitude_data.adjusted_magnitude,
       sun_position: sun_position,
       latitude: geodetic.latitude * Constants.rad2deg,
       longitude: geodetic.longitude * Constants.rad2deg,
@@ -147,9 +158,9 @@ defmodule Satellite.Passes do
 
   defp calculate_footprint_radius(satellite_height) do
     tangent = :math.sqrt(satellite_height * (satellite_height + 2 * 6375))
-    centerAngle = :math.asin(tangent / (6375 + satellite_height))
-    footPrintRadius = 6375 * centerAngle # km
-    footPrintRadius
+    center_angle = :math.asin(tangent / (6375 + satellite_height))
+    footprint_radius = 6375 * center_angle # km
+    footprint_radius
   end
 
   defp visibility(sun_elevation, _satellite_magnitude) when sun_elevation > 0.0, do: [:not_visible, :none]
@@ -222,8 +233,8 @@ defmodule Satellite.Passes do
 
   defp decrement_to_lowest_elevation(start_date, _observer, _satellite_record, elevation, azimuth) do
     local_date = :calendar.universal_time_to_local_time(start_date)
-    {{yy, mm, dd},{h, m, s}} = local_date
-    IO.puts "*** START TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***"
+    {{yy, mm, dd}, {h, m, s}} = local_date
+    Logger.debug fn -> "*** START TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***" end
     %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end
 
@@ -240,14 +251,16 @@ defmodule Satellite.Passes do
   defp last_positive_elevation(start_date, _observer, _satellite_record, elevation, azimuth) do
     # End case - we are now at a negative elevation so return the datetime in local time
     local_date = :calendar.universal_time_to_local_time(start_date)
-    {{yy, mm, dd},{h, m, s}} = local_date
-    # Logger.debug "Test"
-    IO.puts "*** END TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***"
+    {{yy, mm, dd}, {h, m, s}} = local_date
+    Logger.debug fn -> "*** END TIME: #{yy}-#{mm}-#{dd} #{h}:#{m}:#{s}(local) ***" end
     %{datetime: start_date, elevation: elevation, azimuth: azimuth}
   end
 
   defp increment_date(date, seconds) do
-    start_seconds = :calendar.datetime_to_gregorian_seconds(date)
-    start_seconds + seconds |> :calendar.gregorian_seconds_to_datetime
+    #TODO: This conversion is everywhere - put it in a helper somewhere
+    date
+    |> :calendar.datetime_to_gregorian_seconds
+    |> Kernel.+(seconds)
+    |> :calendar.gregorian_seconds_to_datetime
   end
 end

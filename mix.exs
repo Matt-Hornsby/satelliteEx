@@ -5,6 +5,8 @@ defmodule Satellite.Mixfile do
     [app: :satellite,
      version: "0.1.0",
      elixir: "~> 1.4",
+     test_coverage: [tool: ExCoveralls],
+     preferred_cli_env: ["coveralls": :test, "coveralls.detail": :test, "coveralls.post": :test, "coveralls.html": :test],
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      deps: deps()]
@@ -29,6 +31,10 @@ defmodule Satellite.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [{:ex_doc, "~> 0.12"}]
+    [
+      {:ex_doc, "~> 0.12"},
+      {:credo, "~> 0.8", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.7", only: :test}
+    ]
   end
 end

@@ -50,11 +50,11 @@ defmodule Satellite.SGP4.Model do
     em = satrec.ecco
     inclm = satrec.inclo
 
-    if (satrec.method === 'd') do
+    if satrec.method === 'd' do
       # TODO: Implement deep space logic - line 174-237 in sgp4.js
     end
 
-    if (nm <= 0.0) do
+    if nm <= 0.0 do
       # satrec = %{satrec | error: 2}
       # TODO: Handle this in a more idiomatic way
       {:err, 2, satrec}
@@ -67,7 +67,7 @@ defmodule Satellite.SGP4.Model do
 
     #  fix tolerance for error recognition
     #  sgp4fix am is fixed from the previous nm check
-    if (em >= 1.0 || em < -0.001) do
+    if em >= 1.0 || em < -0.001 do
       # satrec = %{satrec | error: 1}
       # TODO: Handle this in a more idiomatic way
       {:err, 1, satrec}
@@ -99,12 +99,12 @@ defmodule Satellite.SGP4.Model do
     sinip = sinim
     cosip = cosim
 
-    if (satrec.method === 'd') do
+    if satrec.method === 'd' do
       # TODO: Skipping more deep space logic for now - line 282-313 in sgp4.js
     end
 
     # -------------------- long period periodics ------------------
-    if (satrec.method === 'd') do
+    if satrec.method === 'd' do
       # TODO: Skipping more deep space logic for now - line 315-326 in sgp4.js
     end
 
@@ -116,7 +116,7 @@ defmodule Satellite.SGP4.Model do
     #  --------------------- solve kepler's equation ---------------
     u = mod((xl - nodep), Constants.two_pi)
     eo1 = u
-    tem5 = 9999.9
+    tem5 = 9_999.9
     ktr = 1
 
     {sineo1, coseo1} = iterate_kepler(tem5, ktr, eo1, axnl, aynl, u, 0.0, 0.0)
@@ -127,7 +127,7 @@ defmodule Satellite.SGP4.Model do
     el2 = axnl * axnl + aynl * aynl
     pl = am * (1.0 - el2)
 
-    if (pl < 0.0) do
+    if pl < 0.0 do
       # satrec = %{satrec | error: 4}
       # TODO: Handle this in a more idiomatic way
       {:err, 4, satrec}
@@ -149,7 +149,8 @@ defmodule Satellite.SGP4.Model do
     temp2 = temp1 * temp
 
     #  -------------- update for short period periodics ------------
-    satrec = if (satrec.method === 'd') do
+    satrec =
+      if satrec.method === 'd' do
         cosisq = cosip * cosip
         %{satrec | con41: 3.0 * cosisq - 1.0,
           x1mth2: 1.0 - cosisq,
@@ -193,7 +194,7 @@ defmodule Satellite.SGP4.Model do
     v = %{v | z: (mvt * uz + rvdot * vz) * vkmpersec}
 
     #  sgp4fix for decaying satellites
-    if (mrt < 1.0) do
+    if mrt < 1.0 do
       # satrec = %{satrec | error: 6}
       # TODO: Handle this in a more idiomatic way
       {:err, 6, satrec}
@@ -215,11 +216,11 @@ defmodule Satellite.SGP4.Model do
 
   defp iterate_kepler(_tem5, _ktr, _eo1, _axnl, _aynl, _u, sineo1, coseo1), do: {sineo1, coseo1}
 
-  def propagate(satrec, year, month, day, hour, minute, second) do
+  def propagate(satrec, {{_year, _month, _day}, {_hour, _minute, _second}} = input_date) do
     #TODO: THIS NEEDS TO BE UTC TIME!!!
 
     #Return a position and velocity vector for a given date and time.
-    j = jday(year, month, day, hour, minute, second)
+    j = jday(input_date)
     m = (j - satrec.jdsatepoch) * Constants.minutes_per_day
     calculate(satrec, m)
   end

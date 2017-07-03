@@ -40,20 +40,20 @@ defmodule Satellite.TLE do
       satrec = %{satrec | altp: satrec.a * (1.0 - satrec.ecco) - 1.0}
 
       year = epoch_year(satrec.epochyr)
-      mdhms_result = days2mdhms(year, satrec.epochdays)
+      mdhms_result = epoch_time_to_mdhms(year, satrec.epochdays)
       mon = mdhms_result.mon
       day = mdhms_result.day
       hr = mdhms_result.hr
       minute = mdhms_result.minute
       sec = mdhms_result.second
 
-      satrec = %{satrec | jdsatepoch: jday(year, mon, day, hr, minute, sec)}
+      satrec = %{satrec | jdsatepoch: jday({{year, mon, day}, {hr, minute, sec}})}
 
       sgp4_init_parameters =
         %{
           opsmode: @opsmode,
           satn: satrec.satnum,
-          epoch: (satrec.jdsatepoch - 2433281.5),
+          epoch: (satrec.jdsatepoch - 2_433_281.5),
           xbstar: satrec.bstar,
           xecco: satrec.ecco,
           xargpo: satrec.argpo,
@@ -77,7 +77,6 @@ defmodule Satellite.TLE do
   #end
 
   def parse_line1(tle_line_1) do
-    try do
       #tle_line_1 = "1 25544U 98067A   13149.87225694  .00009369  00000-0  16828-3 0  9031"
       <<
         line_number         :: binary-size(1),
@@ -137,11 +136,9 @@ defmodule Satellite.TLE do
       }}
     rescue
       _ -> {:error, :invalid_tle}
-    end
   end
 
   def parse_line2(tle_line_2) do
-    try do
       #tle_line_2 = "2 25544 051.6485 199.1576 0010128 012.7275 352.5669 15.50581403831869"
       <<
         line_number         :: binary-size(1),
@@ -188,6 +185,5 @@ defmodule Satellite.TLE do
       }}
     rescue
       _ -> {:error, :invalid_tle}
-    end
   end
 end

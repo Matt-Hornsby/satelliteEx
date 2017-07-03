@@ -1,8 +1,16 @@
 defmodule Satellite.SatelliteDatabase do
+  @moduledoc """
+  This module serves as a system-wide repository of satellite information.
+  On startup, this genserver looks for locally-cached copies of satellite TLE
+  data, and downloads it from the respective remote data sources (celestrak, amsat, etc)
+  when the local cache does not exist or is stale.
+
+  The server will periodically attempt to refresh its data.
+  """
   use GenServer
   require Logger
 
-  @sourceUrls [
+  @source_urls [
     {'http://www.amsat.org/amsat/ftp/keps/current/', 'nasabare.txt'},
     {'http://www.celestrak.com/NORAD/elements/', 'Visual.txt'}
   ]
@@ -39,7 +47,7 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   def handle_call({:lookup, name}, _from, satellites) do
-    satellite = 
+    satellite =
       satellites
       |> Map.values
       |> Enum.find(&(&1.name == name))
@@ -64,15 +72,15 @@ defmodule Satellite.SatelliteDatabase do
 
   ## Private
 
-  defp schedule_tle_update() do
+  defp schedule_tle_update do
     next_update = 2 * 60 * 60 * 1000 # In 2 hours (in ms)
     Logger.info "Scheduling next TLE update in 2 hours"
-    Process.send_after(self(), :update_tle, next_update) 
+    Process.send_after(self(), :update_tle, next_update)
   end
 
-  defp fetch_satellites() do
+  defp fetch_satellites do
     sat_map =
-      @sourceUrls
+      @source_urls
       |> Stream.map(&load_satrecs/1)
       |> Enum.to_list
       |> List.flatten
@@ -102,17 +110,17 @@ defmodule Satellite.SatelliteDatabase do
 
     file_path = "priv/#{filename}.dat"
 
-    Logger.debug "Looking for local file #{file_path}"
+    Logger.debug fn -> "Looking for local file #{file_path}" end
     cache_status = cache_status(file_path)
 
-    Logger.debug "Status of file cache for #{file_path}: #{cache_status}"
+    Logger.debug fn -> "Status of file cache for #{file_path}: #{cache_status}" end
     url = base_url ++ filename
 
     case cache_status do
-       :cache_available -> 
+       :cache_available ->
          Logger.info "Found up to date cache for #{filename}, skipping update"
 
-       :cache_expired   -> 
+       :cache_expired   ->
         with {:ok, body} <- download(url),
               :ok        <- File.write(file_path, body)
         do
@@ -122,7 +130,7 @@ defmodule Satellite.SatelliteDatabase do
           Logger.warn "Unable to update stale cache! Falling back to old cache. Predictions may be wildly inaccurate!"
         end
 
-       :cache_not_found -> 
+       :cache_not_found ->
         with {:ok, body} <- download(url),
               :ok        <- File.write(file_path, body)
         do
@@ -134,13 +142,13 @@ defmodule Satellite.SatelliteDatabase do
     end
 
     # If we got here, then a file should exist.
-    File.read!(file_path) |> parse_tle_string
+    file_path |> File.read! |> parse_tle_string
 
   end
 
-  defp cache_status(filename) do  
+  defp cache_status(filename) do
     case File.stat(filename) do
-      {:ok, %{mtime: last_modified_time}} -> 
+      {:ok, %{mtime: last_modified_time}} ->
         if cache_expired?(last_modified_time), do: :cache_expired, else: :cache_available
       {:error, :enoent} -> :cache_not_found
     end

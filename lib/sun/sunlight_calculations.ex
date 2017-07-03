@@ -1,4 +1,8 @@
 defmodule Sun.SunlightCalculations do
+  @moduledoc """
+  This module contains the math for determining whether a satellite is 
+  illuminated by the sun. 
+  """
   require Satellite.Constants
   alias Satellite.{Constants, CoordinateTransforms}
 
@@ -10,16 +14,14 @@ defmodule Sun.SunlightCalculations do
     sunlit?(k, satellite_position)
   end
 
-  def sunlit?(k, _satellite_position) when k >= 0, do: true
-  def sunlit?(k, satellite_position) do
+  defp sunlit?(k, _satellite_position) when k >= 0, do: true
+  defp sunlit?(k, satellite_position) do
     new_k = :math.sqrt(satellite_position.x * satellite_position.x +
             satellite_position.y * satellite_position.y +
             satellite_position.z * satellite_position.z -
             k * k)
-    cond do
-      new_k > Constants.earth_radius_semimajor() -> true
-      true -> false
-    end
+
+    if new_k > Constants.earth_radius_semimajor(), do: true, else: false
   end
 
   def get_base_magnitude(standard_magnitude, satellite_position, sun_position, observer_position, gmst) do
@@ -47,6 +49,7 @@ defmodule Sun.SunlightCalculations do
   end
 
   def adjust_magnutide_for_low_elevation(base_magnitude, elevation) when elevation < 20 do
+    # credo:disable-for-next-line
     base_magnitude + (20 - elevation) / 15 * 1
   end
 
@@ -57,5 +60,18 @@ defmodule Sun.SunlightCalculations do
   end
 
   def adjust_magnitude_for_sunset(base_magnitude, _sun_elevation), do: base_magnitude
+
+  def calculate_magnitude(satellite_position, satellite_magnitude, sun_position, observer, gmst, satellite_elevation) do
+    sunlit? = calculate_sunlit_status(satellite_position, sun_position)
+    base_magnitude = get_base_magnitude(satellite_magnitude, satellite_position, sun_position, observer, gmst)
+
+    base_magnitude = if !sunlit?, do: 999.0, else: base_magnitude
+
+    adjusted_magnitude = base_magnitude
+                          |> adjust_magnutide_for_low_elevation(satellite_elevation * Constants.rad2deg)
+                          |> adjust_magnitude_for_sunset(sun_position.elevation_radians)
+
+    %{sunlit: sunlit?, base_magnitude: base_magnitude, adjusted_magnitude: adjusted_magnitude}
+  end
 
 end

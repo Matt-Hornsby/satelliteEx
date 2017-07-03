@@ -40,6 +40,6 @@ defmodule Satellite do
   end
 
   defp seattle_observer, do: Observer.KnownLocations.seattle
-  defp iss_satrec, do: Satellite.SatelliteDatabase.lookup(25544)
+  defp iss_satrec, do: Satellite.SatelliteDatabase.lookup(25_544)
 
 end
