@@ -11,10 +11,10 @@ defmodule Satellite.Passes do
   """
 
   require Satellite.Constants
-  alias Satellite.{Constants, CoordinateTransforms}
-  import Satellite.Dates
+
   import Sun.SunlightCalculations
   import Sun.SunPosition
+  alias Satellite.{SGP4, CoordinateTransforms, Constants, Dates}
   require Logger
 
   #
@@ -36,7 +36,7 @@ defmodule Satellite.Passes do
   end
 
   def next_pass(satrec, {{_year, _month, _day}, {_hour, _min, _sec}} = start_date,
-                          %{longitude: _, latitude: _, height: _} = observer) do
+                          %{longitude_rad: _, latitude_rad: _, height_km: _} = observer) do
       pass = find_first_pass_for(start_date, observer, satrec)
       start_prediction = predict_for(pass.start_of_pass.datetime, observer, satrec)
       end_prediction = predict_for(pass.end_of_pass.datetime, observer, satrec)
@@ -82,68 +82,46 @@ defmodule Satellite.Passes do
   defp list_passes(_satrec, 0, _observer, _start_datetime, passes), do: passes
   defp list_passes(satrec, count, observer, start_datetime, passes) do
     new_time = start_datetime |>
-      :calendar.datetime_to_gregorian_seconds |>
-      Kernel.+(1) |>
-      :calendar.gregorian_seconds_to_datetime
+      :calendar.datetime_to_gregorian_seconds
+      |> Kernel.+(1) # add one second to move the next time forward a bit
+      |> :calendar.gregorian_seconds_to_datetime
 
     this_pass = next_pass(satrec, new_time, observer)
-
     list_passes(satrec, count - 1, observer, this_pass.end_time, passes ++ [this_pass])
   end
 
+  #TODO: These can be combined with list_passes above - they mostly do the same thing
   defp list_passes_until(_satrec, _observer, start_datetime, end_datetime, passes) when start_datetime >= end_datetime, do: passes
   defp list_passes_until(satrec, observer, start_datetime, end_datetime, passes) do
 
     new_time = start_datetime |>
-      :calendar.datetime_to_gregorian_seconds |>
-      Kernel.+(1) |>
-      :calendar.gregorian_seconds_to_datetime
+      :calendar.datetime_to_gregorian_seconds
+      |> Kernel.+(1) # add one second to move the next time forward a bit
+      |> :calendar.gregorian_seconds_to_datetime
 
     this_pass = next_pass(satrec, new_time, observer)
     list_passes_until(satrec, observer, this_pass.end_time, end_datetime, passes ++ [this_pass])
   end
 
-  defp predict_for({{year, month, day}, {hour, min, sec}} = input_date,
-                  %Observer{longitude: _, latitude: _, height: _} = observer,
+  defp predict_for({{_year, _month, _day}, {_hour, _min, _sec}} = input_date,
+                  %Observer{longitude_rad: longitude, latitude_rad: latitude, height_km: _} = observer,
                   satellite_record) do
 
-    gmst = gstime(jday(input_date))
-    position_and_velocity = Satellite.SGP4.propagate(satellite_record, {{year, month, day}, {hour, min, sec}})
+    gmst = Dates.utc_to_gmst(input_date)
+    position_and_velocity = SGP4.propagate(satellite_record, input_date)
     position_eci = position_and_velocity.position
     #velocityEci = position_and_velocity.velocity
     position_ecf = CoordinateTransforms.eci_to_ecf(position_eci, gmst)
     geodetic = CoordinateTransforms.eci_to_geodetic(position_eci, gmst)
     look_angles = CoordinateTransforms.ecf_to_look_angles(observer, position_ecf)
-    sun_position = get_position_at(input_date, observer)
-    sunlit = calculate_sunlit_status(position_eci, sun_position)
-
-    magnitude =
-      if sunlit == true do
-          get_base_magnitude(satellite_record.magnitude, position_eci, sun_position, observer, gmst)
-        else
-          999.0 # Not sunlit, so set magnitude to something really faint
-      end
-
-    adjusted_magnitude = magnitude
-                          |> adjust_magnutide_for_low_elevation(look_angles.elevation * Constants.rad2deg)
-                          |> adjust_magnitude_for_sunset(sun_position.elevation_radians)
-
-    magnitude_data = calculate_magnitude(position_eci, satellite_record.magnitude, sun_position, observer, gmst, look_angles.elevation)
-    
-    comparison = [sunlit, magnitude_data.sunlit, magnitude, magnitude_data.base_magnitude, adjusted_magnitude, magnitude_data.adjusted_magnitude]
-    if sunlit != magnitude_data.sunlit, do: Logger.warn("sunlit: #{sunlit} | #{magnitude_data.sunlit}")
-    if magnitude != magnitude_data.base_magnitude, do: Logger.warn("magnitude: #{magnitude} | #{magnitude_data.base_magnitude}")
-    if adjusted_magnitude != magnitude_data.adjusted_magnitude do
-      Logger.warn("adjusted: #{adjusted_magnitude} | #{magnitude_data.adjusted_magnitude}")
-      Logger.info "#{inspect position_eci} #{satellite_record.magnitude} #{sun_position.elevation_radians} #{inspect observer} #{inspect gmst} #{look_angles.elevation}"
-    end
-
+    sun_position = get_position_at(input_date, latitude, longitude)
+    magnitude_data = calculate_magnitude(position_eci, satellite_record.magnitude, sun_position, observer, gmst, look_angles.elevation_deg)
     footprint_radius = calculate_footprint_radius(geodetic.height)
 
     %{
       datetime: input_date,
-      elevation_in_degrees: look_angles.elevation * Constants.rad2deg,
-      azimuth_in_degrees: look_angles.azimuth * Constants.rad2deg,
+      elevation_in_degrees: look_angles.elevation_deg,
+      azimuth_in_degrees: look_angles.azimuth_deg,
       range: look_angles.range_sat,
       sunlit?: magnitude_data.sunlit,
       satellite_magnitude: magnitude_data.base_magnitude,
@@ -190,7 +168,7 @@ defmodule Satellite.Passes do
   defp brightest_part_of_pass(_start_of_pass, _end_of_pass, _observer, _satrec, current_best_pass), do: current_best_pass
 
   defp find_first_pass_for({{_year, _month, _day}, {_hour, _min, _sec}} = start_date,
-                          %{longitude: _, latitude: _, height: _} = observer,
+                          %{longitude_rad: _, latitude_rad: _, height_km: _} = observer,
                           satellite_record) do
 
     first_prediction = predict_for(start_date, observer, satellite_record)

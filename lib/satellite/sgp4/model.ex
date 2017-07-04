@@ -4,8 +4,7 @@
 
 defmodule Satellite.SGP4.Model do
   require Satellite.Constants
-  alias Satellite.Constants
-  import Satellite.{Math, Dates}
+  alias Satellite.{Constants, Dates, Math}
 
   def calculate(satrec, tsince) do
     #temp4 = 1.5e-12
@@ -81,10 +80,10 @@ defmodule Satellite.SGP4.Model do
     #emsq = em * em
     #temp = 1.0 - emsq
 
-    nodem = mod(nodem, Constants.two_pi)
-    argpm = mod(argpm, Constants.two_pi)
-    xlm = mod(xlm, Constants.two_pi)
-    mm = mod(xlm - argpm - nodem, Constants.two_pi)
+    nodem = Math.mod(nodem, Constants.two_pi)
+    argpm = Math.mod(argpm, Constants.two_pi)
+    xlm = Math.mod(xlm, Constants.two_pi)
+    mm = Math.mod(xlm - argpm - nodem, Constants.two_pi)
 
     #  ----------------- compute extra mean quantities -------------
     sinim = :math.sin(inclm)
@@ -114,7 +113,7 @@ defmodule Satellite.SGP4.Model do
     xl = mp + argpp + nodep + temp * satrec.xlcof * axnl
 
     #  --------------------- solve kepler's equation ---------------
-    u = mod((xl - nodep), Constants.two_pi)
+    u = Math.mod((xl - nodep), Constants.two_pi)
     eo1 = u
     tem5 = 9_999.9
     ktr = 1
@@ -220,7 +219,7 @@ defmodule Satellite.SGP4.Model do
     #TODO: THIS NEEDS TO BE UTC TIME!!!
 
     #Return a position and velocity vector for a given date and time.
-    j = jday(input_date)
+    j = Dates.jday(input_date)
     m = (j - satrec.jdsatepoch) * Constants.minutes_per_day
     calculate(satrec, m)
   end

@@ -1,7 +1,6 @@
 defmodule Satellite.TLE do
   require Satellite.Constants
-  alias Satellite.{Constants, SGP4}
-  import Satellite.Dates
+  alias Satellite.{Constants, SGP4, Math, Dates}
 
   @opsmode 'i'
   @xpdotp 1440.0 / (2.0 * Constants.pi()) # 229.1831180523293
@@ -40,14 +39,14 @@ defmodule Satellite.TLE do
       satrec = %{satrec | altp: satrec.a * (1.0 - satrec.ecco) - 1.0}
 
       year = epoch_year(satrec.epochyr)
-      mdhms_result = epoch_time_to_mdhms(year, satrec.epochdays)
+      mdhms_result = Dates.epoch_time_to_mdhms(year, satrec.epochdays)
       mon = mdhms_result.mon
       day = mdhms_result.day
       hr = mdhms_result.hr
       minute = mdhms_result.minute
       sec = mdhms_result.second
 
-      satrec = %{satrec | jdsatepoch: jday({{year, mon, day}, {hr, minute, sec}})}
+      satrec = %{satrec | jdsatepoch: Dates.jday({{year, mon, day}, {hr, minute, sec}})}
 
       sgp4_init_parameters =
         %{
@@ -127,9 +126,9 @@ defmodule Satellite.TLE do
         piece_of_launch: String.trim(piece_of_launch),
         epoch_year: String.to_integer(epoch_year),
         epoch: String.to_float(epoch),
-        first_deriviative: first_deriviative |> Satellite.Math.string_to_float,
-        second_deriviative: second_deriviative |> String.trim |> Satellite.Math.from_fortran_float,
-        bstar_drag: bstar_drag |> String.trim |> Satellite.Math.from_fortran_float,
+        first_deriviative: first_deriviative |> Math.string_to_float,
+        second_deriviative: second_deriviative |> String.trim |> Math.from_fortran_float,
+        bstar_drag: bstar_drag |> String.trim |> Math.from_fortran_float,
         ephemeris_type: String.to_integer(ephemeris_type),
         element_set: element_set |> String.trim |> String.to_integer,
         checksum: String.to_integer(checksum)

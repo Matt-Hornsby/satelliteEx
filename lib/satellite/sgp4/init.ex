@@ -4,8 +4,7 @@
 
 defmodule Satellite.SGP4.Init do
   require Satellite.Constants
-  alias Satellite.{Constants, SGP4}
-  import Satellite.Dates
+  alias Satellite.{Constants, Dates, SGP4}
 
   def init(satrec, init_parameters) do
     opsmode = init_parameters.opsmode
@@ -29,7 +28,8 @@ defmodule Satellite.SGP4.Init do
 
     temp4 = 1.5e-12
 
-    # sgp4fix - note the following variables are also passed directly via satrec.
+    # sgp4fix -
+    # note the following variables are also passed directly via satrec.
     # it is possible to streamline the sgp4init call by deleting the "x"
     # variables, but the user would need to set the satrec.* values first. we
     # include the additional assignments in case twoline2rv is not used.
@@ -120,9 +120,10 @@ defmodule Satellite.SGP4.Init do
         psisq = abs(1.0 - etasq)
         coef = qzms24 * :math.pow(tsi, 4.0)
         coef1 = coef / :math.pow(psisq, 3.5)
-        cc2 = coef1 * satrec.no * (ao * (1.0 + 1.5 * etasq + eeta *
-                    (4.0 + etasq)) + 0.375 * Constants.j2 * tsi / psisq * satrec.con41 *
-                    (8.0 + 3.0 * etasq * (8.0 + etasq)))
+        cc2 = coef1 * satrec.no * (ao *
+              (1.0 + 1.5 * etasq + eeta * (4.0 + etasq)) +
+              0.375 * Constants.j2 * tsi / psisq * satrec.con41 *
+              (8.0 + 3.0 * etasq * (8.0 + etasq)))
         satrec = %{satrec | cc1: satrec.bstar * cc2}
 
         cc3 =
@@ -264,7 +265,7 @@ defmodule Satellite.SGP4.Init do
         gsto = rem(thgr70 + c1 * ds70 + c1p2p * tfrac + ts70 * ts70 * fk5r, Constants.two_pi)
         if gsto < 0.0, do: gsto + Constants.two_pi, else: gsto
       else
-        gsto = gstime(epoch + 2_433_281.5)
+        gsto = Dates.julian_to_gmst(epoch + 2_433_281.5)
       end
 
     %{

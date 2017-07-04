@@ -9,7 +9,7 @@ defmodule Satellite.CoordinateTransforms do
     %{x: x, y: y, z: z}
   end
 
-  def ecf_to_look_angles(%Observer{latitude: latitude, longitude: longitude} = observerCoordsEcf, satelliteCoordsEcf) do
+  def ecf_to_look_angles(%Observer{latitude_rad: latitude, longitude_rad: longitude} = observerCoordsEcf, satelliteCoordsEcf) do
     observer_ecf = geodetic_to_ecf(observerCoordsEcf)
     rx = satelliteCoordsEcf.x - observer_ecf.x
     ry = satelliteCoordsEcf.y - observer_ecf.y
@@ -29,16 +29,16 @@ defmodule Satellite.CoordinateTransforms do
     el = :math.asin(top_z/range_sat)
     az = :math.atan2(-top_e, top_s) + Constants.pi
 
-    %{azimuth: az, elevation: el, range_sat: range_sat}
+    %{azimuth_rad: az, azimuth_deg: az * Constants.rad2deg, elevation_rad: el, range_sat: range_sat, elevation_deg: el * Constants.rad2deg}
   end
 
   # Convert to geocentric (earth centered earth fixed) coordinates
   def geodetic_to_ecf(geodetic_coords) do
-    longitude = geodetic_coords.longitude
-    latitude = geodetic_coords.latitude
-    height = geodetic_coords.height
-    a = Satellite.Constants.earth_radius_semimajor
-    b = Satellite.Constants.earth_radius_semiminor
+    longitude = geodetic_coords.longitude_rad
+    latitude = geodetic_coords.latitude_rad
+    height = geodetic_coords.height_km
+    a = Constants.earth_radius_semimajor
+    b = Constants.earth_radius_semiminor
     f = (a - b)/a
     e2 = ((2 * f) - (f * f))
     normal = a / :math.sqrt(1 - (e2 * (:math.sin(latitude) * :math.sin(latitude))))
@@ -52,8 +52,8 @@ defmodule Satellite.CoordinateTransforms do
   end
 
   def eci_to_geodetic(eciCoords, gmst) do
-    a   = Satellite.Constants.earth_radius_semimajor
-    b   = Satellite.Constants.earth_radius_semiminor
+    a   = Constants.earth_radius_semimajor
+    b   = Constants.earth_radius_semiminor
     r   = :math.sqrt((eciCoords.x * eciCoords.x) + (eciCoords.y * eciCoords.y))
     f   = (a - b)/a
     e2  = ((2 * f) - (f * f))
