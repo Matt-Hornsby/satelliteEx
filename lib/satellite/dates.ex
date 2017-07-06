@@ -15,17 +15,22 @@ defmodule Satellite.Dates do
 
   ## Examples
 
-        iex> Satellite.Dates.epoch_time_to_mdhms(131, 49.872256942)
-        %{day: 18, hr: 20, minute: 56, mon: 2, second: 2.9996159999791416}
+        iex> Satellite.Dates.epoch_time_to_mdhms(131, 349.872256942)
+        %{day: 15, hr: 20, minute: 56, mon: 12, second: 2.9997887981517124}
   """
   def epoch_time_to_mdhms(year, days) do
     #TODO: The above doctest wasn't executing, and when it was turned on
     # the values for second are now different than when this was originally
     # written, which is concerning. Need to investigate if something 
     # changed in the logic at some point.
+
+    # Find month and day of month
     dayofyr = days |> Float.floor |> trunc
-    {day_temp, month} = day_and_month(year, dayofyr)
-    day = dayofyr - day_temp
+    # {day_temp, month} = day_and_month(year, dayofyr) |> IO.inspect(label: "day and month")
+    # day = dayofyr - day_temp
+    {day, month} = day_and_month(year, dayofyr)
+
+    # Find minutes and seconds
     temp = (days - dayofyr) * 24.0
     hr = temp |> Float.floor |> trunc
     temp = (temp - hr) * 60.0
@@ -41,14 +46,28 @@ defmodule Satellite.Dates do
     }
   end
 
-  defp day_and_month(year, dayofyr) do
-    lmonth = [31] ++ [days_in_february(year)] ++ [31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    [head | tail] = lmonth
-    day_and_month(dayofyr, head, tail)
+  defp day_and_month(year, julian_day) when is_number(julian_day) do
+    months =  [31] ++
+              [days_in_february(year)] ++
+              [31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+    total_days_in_year = Enum.sum(months)
+
+    if total_days_in_year < julian_day do
+      raise "There are only #{total_days_in_year} days in the year, " <>
+            "but #{julian_day} was given!"
+    end
+    
+    day_and_month(julian_day, months)
   end
 
-  defp day_and_month(_dayofyr, daysToAdd, []),       do: {daysToAdd, 12}
-  defp day_and_month(_dayofyr, daysToAdd, dayList),  do: {daysToAdd, 12 - Enum.count(dayList) + 1}
+  defp day_and_month(days_remaining, [days_this_month | _] = day_list) when days_remaining <= days_this_month do
+    {days_remaining, 12 - Enum.count(day_list) + 1}
+  end
+
+  defp day_and_month(days_remaining, [days_this_month | remaining_months]) do
+    day_and_month(days_remaining - days_this_month, remaining_months)
+  end
 
   defp days_in_february(year) do
     if :calendar.is_leap_year(year), do: 29, else: 28
