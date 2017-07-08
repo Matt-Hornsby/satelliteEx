@@ -1,15 +1,30 @@
 defmodule Satellite.Dates do
-  import Satellite.Math
   require Satellite.Constants
-  alias Satellite.Constants
+  alias Satellite.{Constants, Math}
 
-  #
-  # DaysToMDHMS
-  #
-  def days2mdhms(year, days) do
+  @doc """
+  Converts a time represented in epoch time to
+  %{month, day, hour, minute, second} format.
+
+  This format comes from the two line element(TLE) set format,
+  which provides a reference for all other time-based fields in
+  the data.
+
+  See the following for a detailed explanation:
+  https://celestrak.com/columns/v04n03/#FAQ02
+
+  ## Examples
+
+        iex> Satellite.Dates.epoch_time_to_mdhms(131, 349.872256942)
+        %{day: 15, hr: 20, minute: 56, mon: 12, second: 2.9997887981517124}
+  """
+  def epoch_time_to_mdhms(year, days) do
+
+    # Find month and day of month
     dayofyr = days |> Float.floor |> trunc
-    {dayTemp, month} = day_and_month(year, dayofyr)
-    day = dayofyr - dayTemp
+    {day, month} = day_and_month(year, dayofyr)
+
+    # Find minutes and seconds
     temp = (days - dayofyr) * 24.0
     hr = temp |> Float.floor |> trunc
     temp = (temp - hr) * 60.0
@@ -25,52 +40,79 @@ defmodule Satellite.Dates do
     }
   end
 
-  defp day_and_month(year, dayofyr) do
-    lmonth = [31] ++ [days_in_februrary(year)] ++ [31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    [head | tail] = lmonth
-    day_and_month(dayofyr, head, tail)
+  defp day_and_month(year, julian_day) when is_number(julian_day) do
+    months =  [31] ++
+              [days_in_february(year)] ++
+              [31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+    total_days_in_year = Enum.sum(months)
+
+    if total_days_in_year < julian_day do
+      raise "There are only #{total_days_in_year} days in the year, " <>
+            "but #{julian_day} was given!"
+    end
+
+    # start with the julian day, and iteratively subtract the days
+    # in each month. When the remaining days become less than a full month
+    # then we know we found the right month. 
+    day_and_month(julian_day, months)
   end
 
-  defp days_in_februrary(year) when rem(year, 4) === 0 , do: 29
-  defp days_in_februrary(_year),                         do: 28
+  defp day_and_month(days_remaining, [days_this_month | _] = day_list) when days_remaining <= days_this_month do
+    # The count of remaining days isn't enough to fill the current month, so 
+    # we are done. The fractional days remaining become the days, and we
+    # count the remaining months to figure out which month we are in.
+    {days_remaining, 12 - Enum.count(day_list) + 1}
+  end
 
-  defp day_and_month(_dayofyr, daysToAdd, []),       do: {daysToAdd, 12}
-  defp day_and_month(_dayofyr, daysToAdd, dayList),  do: {daysToAdd, 12 - Enum.count(dayList) + 1}
+  defp day_and_month(days_remaining, [days_this_month | remaining_months]) do
+    # Subtract the days in the current month and move to the next month
+    day_and_month(days_remaining - days_this_month, remaining_months)
+  end
 
+  defp days_in_february(year) do
+    if :calendar.is_leap_year(year), do: 29, else: 28
+  end
 
   @doc """
   Converts a gregorian date to julian date
   ## Examples
 
-        iex> Satellite.Dates.jday(2016, 8, 6, 17, 35, 12)
+        iex> Satellite.Dates.jday({{2016, 8, 6}, {17, 35, 12}})
         2457607.2327777776
   """
-  def jday(year, mon, day, hr, minute, sec) do
+  def jday({{year, month, day}, {hour, min, sec}}) do
     367.0 * year -
-      Float.floor((7 * (year + Float.floor((mon + 9) / 12.0))) * 0.25) +
-      Float.floor(275 * mon / 9.0) + day + 1721013.5 + ((sec / 60.0 + minute) / 60.0 + hr)
+      Float.floor((7 * (year + Float.floor((month + 9) / 12.0))) * 0.25) +
+      Float.floor(275 * month / 9.0) + day + 1_721_013.5 + ((sec / 60.0 + min) / 60.0 + hour)
       / 24.0 #  ut in days
   end
 
   @doc """
-  Converts a julian date to greenwich sidereal angle (GST)
+  Converts a julian date to greenwich mean sidereal time (GMST)
   ## Examples
 
-        iex> jd = Satellite.Dates.jday(2016, 8, 6, 17, 35, 12)
-        iex> Satellite.Dates.gstime(jd)
+        iex> jd = Satellite.Dates.jday({{2016, 8, 6}, {17, 35, 12}})
+        iex> Satellite.Dates.julian_to_gmst(jd)
         3.8307254407191067
   """
-  def gstime(jdut1) do
-    tut1 = (jdut1 - 2451545.0) / 36525.0
-    # 24110.54841 + 8640184.812866 * T + 0.093104 * T^2 - 0.0000062 * T^3
-    # temp = 24110.54841 + 8640184.812866 * tut1 + 0.093104 * (tut1 * tut1) - (0.000062 * tut1 * tut1 * tut1)
-    temp = -6.2e-6* tut1 * tut1 * tut1 + 0.093104 * tut1 * tut1 + (876600.0*3600 + 8640184.812866) * tut1 + 67310.54841  # #  sec
-    temp = mod((temp * Constants.deg2rad / 240.0), Constants.two_pi) # 360/86400 = 1/240, to deg, to rad
+  def julian_to_gmst(jdut1) do
+    tut1 = (jdut1 - 2_451_545.0) / 36_525.0
+    # 24_110.54841 + 86_40_184.812866 * T + 0.093104 * T^2 - 0.0000062 * T^3
+    # temp = 24_110.54841 + 8_640_184.812866 * tut1 + 0.093104 * (tut1 * tut1) - (0.000062 * tut1 * tut1 * tut1)
+    temp = -6.2e-6 * tut1 * tut1 * tut1 + 0.093104 * tut1 * tut1 + (876_600.0 * 3600 + 8_640_184.812866) * tut1 + 67_310.54841  # sec
+    temp = Math.mod((temp * Constants.deg2rad / 240.0), Constants.two_pi) # 360/86400 = 1/240, to deg, to rad
 
     #  ------------------------ check quadrants ---------------------
-    cond do
-      (temp < 0.0) -> temp + Constants.two_pi
-      true -> temp
-    end
+    if temp < 0.0, do: temp + Constants.two_pi, else: temp
+  end
+
+  @doc """
+  Converts a datetime to greenwich mean sidereal time
+  """
+  def utc_to_gmst({{_year, _month, _day}, {_hour, _min, _sec}} = input_date_utc) do
+    input_date_utc
+    |> jday           # convert to julian date
+    |> julian_to_gmst # then convert to gmst
   end
 end

@@ -6,55 +6,55 @@ defmodule Satellite.CoordinateTransforms do
     x = (eci_coords.x * :math.cos(gmst)) + (eci_coords.y * :math.sin(gmst))
     y = (eci_coords.x * (-:math.sin(gmst))) + (eci_coords.y * :math.cos(gmst))
     z = eci_coords.z
-    %{ x: x, y: y, z: z }
+    %{x: x, y: y, z: z}
   end
 
-  def ecf_to_look_angles(%Observer{latitude: latitude, longitude: longitude} = observerCoordsEcf, satelliteCoordsEcf) do
-    observerEcf = geodetic_to_ecf(observerCoordsEcf)
-    rx = satelliteCoordsEcf.x - observerEcf.x
-    ry = satelliteCoordsEcf.y - observerEcf.y
-    rz = satelliteCoordsEcf.z - observerEcf.z
+  def ecf_to_look_angles(%Observer{latitude_rad: latitude, longitude_rad: longitude} = observerCoordsEcf, satelliteCoordsEcf) do
+    observer_ecf = geodetic_to_ecf(observerCoordsEcf)
+    rx = satelliteCoordsEcf.x - observer_ecf.x
+    ry = satelliteCoordsEcf.y - observer_ecf.y
+    rz = satelliteCoordsEcf.z - observer_ecf.z
 
-    topS = ((:math.sin(latitude) * :math.cos(longitude) * rx) + (:math.sin(latitude) * :math.sin(longitude) * ry) - (:math.cos(latitude) * rz))
-    topE = (-:math.sin(longitude) * rx) + (:math.cos(longitude) * ry)
-    topZ = ((:math.cos(latitude)*:math.cos(longitude)*rx) + (:math.cos(latitude)*:math.sin(longitude)*ry) + (:math.sin(latitude)*rz))
-    %{ topS: topS, topE: topE, topZ: topZ } |> topocentric_to_look_angles
+    top_s = ((:math.sin(latitude) * :math.cos(longitude) * rx) + (:math.sin(latitude) * :math.sin(longitude) * ry) - (:math.cos(latitude) * rz))
+    top_e = (-:math.sin(longitude) * rx) + (:math.cos(longitude) * ry)
+    top_z = ((:math.cos(latitude) * :math.cos(longitude) * rx) + (:math.cos(latitude) * :math.sin(longitude) * ry) + (:math.sin(latitude) * rz))
+    %{top_s: top_s, top_e: top_e, top_z: top_z} |> topocentric_to_look_angles
   end
 
   defp topocentric_to_look_angles(topocentricCoords) do
-    topS = topocentricCoords.topS
-    topE = topocentricCoords.topE
-    topZ = topocentricCoords.topZ
-    rangeSat = :math.sqrt((topS*topS) + (topE*topE) + (topZ*topZ))
-    el = :math.asin(topZ/rangeSat)
-    az = :math.atan2(-topE, topS) + Constants.pi
+    top_s = topocentricCoords.top_s
+    top_e = topocentricCoords.top_e
+    top_z = topocentricCoords.top_z
+    range_sat = :math.sqrt((top_s * top_s) + (top_e * top_e) + (top_z * top_z))
+    el = :math.asin(top_z/range_sat)
+    az = :math.atan2(-top_e, top_s) + Constants.pi
 
-    %{azimuth: az, elevation: el, rangeSat: rangeSat}
+    %{azimuth_rad: az, azimuth_deg: az * Constants.rad2deg, elevation_rad: el, range_sat: range_sat, elevation_deg: el * Constants.rad2deg}
   end
 
   # Convert to geocentric (earth centered earth fixed) coordinates
   def geodetic_to_ecf(geodetic_coords) do
-    longitude = geodetic_coords.longitude
-    latitude = geodetic_coords.latitude
-    height = geodetic_coords.height
-    a = Satellite.Constants.earth_radius_semimajor
-    b = Satellite.Constants.earth_radius_semiminor
+    longitude = geodetic_coords.longitude_rad
+    latitude = geodetic_coords.latitude_rad
+    height = geodetic_coords.height_km
+    a = Constants.earth_radius_semimajor
+    b = Constants.earth_radius_semiminor
     f = (a - b)/a
-    e2 = ((2*f) - (f*f))
-    normal = a / :math.sqrt( 1 - (e2*(:math.sin(latitude)*:math.sin(latitude))))
+    e2 = ((2 * f) - (f * f))
+    normal = a / :math.sqrt(1 - (e2 * (:math.sin(latitude) * :math.sin(latitude))))
 
     x = (normal + height) * :math.cos(latitude) * :math.cos(longitude)
     y = (normal + height) * :math.cos(latitude) * :math.sin(longitude)
-    z = ((normal*(1-e2)) + height) * :math.sin(latitude)
+    z = ((normal * (1 - e2)) + height) * :math.sin(latitude)
     local_geo_rad = :math.sqrt(x * x + y * y + z * z)
     geo_lat = :math.asin(z / local_geo_rad)
-    %{ x: x, y: y, z: z, local_geo_rad: local_geo_rad, geo_lat: geo_lat}
+    %{x: x, y: y, z: z, local_geo_rad: local_geo_rad, geo_lat: geo_lat}
   end
 
   def eci_to_geodetic(eciCoords, gmst) do
-    a   = Satellite.Constants.earth_radius_semimajor
-    b   = Satellite.Constants.earth_radius_semiminor
-    r   = :math.sqrt( (eciCoords.x * eciCoords.x) + (eciCoords.y * eciCoords.y) )
+    a   = Constants.earth_radius_semimajor
+    b   = Constants.earth_radius_semiminor
+    r   = :math.sqrt((eciCoords.x * eciCoords.x) + (eciCoords.y * eciCoords.y))
     f   = (a - b)/a
     e2  = ((2 * f) - (f * f))
     longitude = :math.atan2(eciCoords.y, eciCoords.x) - gmst
@@ -68,7 +68,7 @@ defmodule Satellite.CoordinateTransforms do
     result = iterate_latitude(iteration_params, k, kmax)
 
     height = (r / :math.cos(result.latitude)) - (a * result.c)
-    %{longitude: longitude, latitude: result.latitude, height: height }
+    %{longitude: longitude, latitude: result.latitude, height: height}
   end
 
   def iterate_latitude(iteration_params, k, kmax) when k < kmax do

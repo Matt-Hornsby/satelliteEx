@@ -1,22 +1,24 @@
 defmodule Satellite do
+  alias Observer.KnownLocations
+  alias Satellite.{SatelliteDatabase, Passes}
   #
   # Public API
   #
 
   def list_passes(satrec, count, observer, start_datetime) do
-    Satellite.Passes.list_passes(satrec, count, observer, start_datetime)
+    Passes.list_passes(satrec, count, observer, start_datetime)
   end
 
   def list_passes_until(satrec, observer, start_datetime, end_datetime) do
-    Satellite.Passes.list_passes_until(satrec, observer, start_datetime, end_datetime)
+    Passes.list_passes_until(satrec, observer, start_datetime, end_datetime)
   end
 
   def next_pass(satrec, start_datetime, observer) do
-    Satellite.Passes.next_pass(satrec, start_datetime, observer)
+    Passes.next_pass(satrec, start_datetime, observer)
   end
 
   def current_position(satrec, observer) do
-    Satellite.Passes.current_position(satrec, observer)
+    Passes.current_position(satrec, observer)
   end
 
   #
@@ -39,7 +41,7 @@ defmodule Satellite do
     next_pass(iss_satrec(), start_datetime, observer)
   end
 
-  defp seattle_observer, do: Observer.KnownLocations.seattle
-  defp iss_satrec, do: Satellite.SatelliteDatabase.lookup(25544)
+  defp seattle_observer, do: KnownLocations.seattle
+  defp iss_satrec, do: SatelliteDatabase.lookup(25_544)
 
 end

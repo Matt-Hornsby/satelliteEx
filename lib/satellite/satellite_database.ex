@@ -1,8 +1,17 @@
 defmodule Satellite.SatelliteDatabase do
+  @moduledoc """
+  This module serves as a system-wide repository of satellite information.
+  On startup, this genserver looks for locally-cached copies of satellite TLE
+  data, and downloads it from the respective remote data sources (celestrak, amsat, etc)
+  when the local cache does not exist or is stale.
+
+  The server will periodically attempt to refresh its data.
+  """
   use GenServer
   require Logger
+  alias Satellite.{MagnitudeDatabase, TLE}
 
-  @sourceUrls [
+  @source_urls [
     {'http://www.amsat.org/amsat/ftp/keps/current/', 'nasabare.txt'},
     {'http://www.celestrak.com/NORAD/elements/', 'Visual.txt'}
   ]
@@ -39,7 +48,7 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   def handle_call({:lookup, name}, _from, satellites) do
-    satellite = 
+    satellite =
       satellites
       |> Map.values
       |> Enum.find(&(&1.name == name))
@@ -56,24 +65,24 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   def handle_info(:update_tle, state) do
-    Logger.info "Updating tle data on schedule"
-    {:ok, satellites} = fetch_satellites()
+    Logger.info "Forcing update of all TLEs"
+    {:ok, satellites} = fetch_satellites(0)
     schedule_tle_update() # Reschedule
     {:noreply, satellites}
   end
 
   ## Private
 
-  defp schedule_tle_update() do
+  defp schedule_tle_update do
     next_update = 2 * 60 * 60 * 1000 # In 2 hours (in ms)
     Logger.info "Scheduling next TLE update in 2 hours"
-    Process.send_after(self(), :update_tle, next_update) 
+    Process.send_after(self(), :update_tle, next_update)
   end
 
-  defp fetch_satellites() do
+  defp fetch_satellites(cache_ttl \\ 12) do
     sat_map =
-      @sourceUrls
-      |> Stream.map(&load_satrecs/1)
+      @source_urls
+      |> Stream.map(&(load_satrecs(&1, cache_ttl)))
       |> Enum.to_list
       |> List.flatten
       |> Enum.map(&{&1.satnum, &1})
@@ -95,24 +104,24 @@ defmodule Satellite.SatelliteDatabase do
     end
   end
 
-  defp load_satrecs({base_url, filename}) do
+  defp load_satrecs({base_url, filename}, cache_ttl) do
 
     # We're going to try to use a locally cached file, and if it's too old or doesn't exist
     # then we try to get it from the internets.
 
     file_path = "priv/#{filename}.dat"
 
-    Logger.debug "Looking for local file #{file_path}"
-    cache_status = cache_status(file_path)
+    Logger.debug fn -> "Looking for local file #{file_path}" end
+    cache_status = cache_status(file_path, cache_ttl)
 
-    Logger.debug "Status of file cache for #{file_path}: #{cache_status}"
+    Logger.debug fn -> "Status of file cache for #{file_path}: #{cache_status}" end
     url = base_url ++ filename
 
     case cache_status do
-       :cache_available -> 
+       :cache_available ->
          Logger.info "Found up to date cache for #{filename}, skipping update"
 
-       :cache_expired   -> 
+       :cache_expired   ->
         with {:ok, body} <- download(url),
               :ok        <- File.write(file_path, body)
         do
@@ -122,7 +131,7 @@ defmodule Satellite.SatelliteDatabase do
           Logger.warn "Unable to update stale cache! Falling back to old cache. Predictions may be wildly inaccurate!"
         end
 
-       :cache_not_found -> 
+       :cache_not_found ->
         with {:ok, body} <- download(url),
               :ok        <- File.write(file_path, body)
         do
@@ -134,24 +143,37 @@ defmodule Satellite.SatelliteDatabase do
     end
 
     # If we got here, then a file should exist.
-    File.read!(file_path) |> parse_tle_string
+    file_path |> File.read! |> parse_tle_string
 
   end
 
-  defp cache_status(filename) do  
+  defp cache_status(filename, cache_ttl) do
     case File.stat(filename) do
-      {:ok, %{mtime: last_modified_time}} -> 
-        if cache_expired?(last_modified_time), do: :cache_expired, else: :cache_available
+      {:ok, %{mtime: last_modified_time}} ->
+        if cache_expired?(last_modified_time, cache_ttl), do: :cache_expired, else: :cache_available
       {:error, :enoent} -> :cache_not_found
     end
   end
 
-  defp cache_expired?({{_yr, _mth, _day}, {_hr, _min, _sec}} = last_modified_time, cache_ttl \\ 12) do
+  defp cache_expired?({{_yr, _mth, _day}, {_hr, _min, _sec}} = last_modified_time, cache_ttl) do
     last_modified_time_seconds = :calendar.datetime_to_gregorian_seconds(last_modified_time)
-    #Logger.debug("File last modified: #{last_modified_time_seconds}")
-    now = :calendar.universal_time() |> :calendar.datetime_to_gregorian_seconds()
-    good_until = now + (cache_ttl * 60 * 60)
-    #Logger.debug("Cache good until: #{good_until}")
+
+    Logger.debug fn ->
+      msg = last_modified_time_seconds
+      |> :calendar.gregorian_seconds_to_datetime
+      |> :calendar.universal_time_to_local_time
+      "File last modified: #{inspect msg}"
+    end
+
+    good_until = last_modified_time_seconds + (cache_ttl * 60 * 60)
+
+    Logger.debug fn ->
+      msg = good_until
+      |> :calendar.gregorian_seconds_to_datetime
+      |> :calendar.universal_time_to_local_time
+      "Cache good until: #{inspect msg}"
+    end
+
     last_modified_time_seconds >= good_until
   end
 
@@ -177,7 +199,7 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   defp entry_to_satrec({name, tle1, tle2}) do
-    case Satellite.TLE.to_satrec(tle1, tle2) do
+    case TLE.to_satrec(tle1, tle2) do
       {:ok, satrec} ->
         {:ok, put_magnitude(%{satrec | name: name})}
       {:error, :invalid_tle} ->
@@ -187,7 +209,7 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   defp put_magnitude(satrec) do
-    case Satellite.MagnitudeDatabase.lookup(satrec.satnum) do
+    case MagnitudeDatabase.lookup(satrec.satnum) do
       {:ok, magnitude} -> %{satrec | magnitude: magnitude}
       _ -> satrec
     end

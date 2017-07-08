@@ -1,8 +1,7 @@
 defmodule SatelliteTest do
   use ExUnit.Case
-  import Satellite.Dates
-  alias Satellite.CoordinateTransforms
-  doctest Satellite
+  alias Satellite.{CoordinateTransforms, Dates}
+  doctest Satellite.Dates
 
   setup_all do
     tle_line_1 = "1 25544U 98067A   13149.87225694  .00009369  00000-0  16828-3 0  9031"
@@ -26,16 +25,17 @@ defmodule SatelliteTest do
 
   test "propagate", state do
     {:ok, satrec} = Satellite.TLE.to_satrec(state[:tle_line_1], state[:tle_line_2])
-    positionAndVelocity = Satellite.SGP4.propagate(satrec, 2017, 1, 1, 1, 1, 1)
+    positionAndVelocity = Satellite.SGP4.propagate(satrec, {{2017, 1, 1}, {1, 1, 1}})
     positionEci = positionAndVelocity.position
     velocityEci = positionAndVelocity.velocity
 
     observerGd = Observer.create_from(36.9613422, -122.0308, 0.370)
 
-    gmst = gstime(jday(2017,1,1,1,1,1))
+    #gmst = gstime(jday({{2017,1,1},{1,1,1}}))
+    gmst = Dates.utc_to_gmst({{2017,1,1},{1,1,1}})
     positionEcf = CoordinateTransforms.eci_to_ecf(positionEci, gmst)
     # observerEcf = CoordinateTransforms.geodetic_to_ecf(observerGd)
-    #positionGd = satellite.eciToGeodetic(positionEci, gmst)
+    # positionGd = satellite.eciToGeodetic(positionEci, gmst)
     lookAngles = CoordinateTransforms.ecf_to_look_angles(observerGd, positionEcf)
 
     tolerance = 0.0000001
@@ -47,13 +47,14 @@ defmodule SatelliteTest do
     assert_in_delta velocityEci.y, 1.067765018113105, tolerance
     assert_in_delta velocityEci.z, -4.5315790425142675, tolerance
 
-    assert_in_delta lookAngles.azimuth, 4.3466709598451425, tolerance
-    assert_in_delta lookAngles.elevation, -0.9994775790843395, tolerance
-    assert_in_delta lookAngles.rangeSat, 11036.184604572572, tolerance
+    assert_in_delta lookAngles.azimuth_rad, 4.3466709598451425, tolerance
+    assert_in_delta lookAngles.elevation_rad, -0.9994775790843395, tolerance
+    assert_in_delta lookAngles.range_sat, 11036.184604572572, tolerance
   end
 
   test "gstime returns correct value" do
-    assert gstime(jday(2017,1,1,1,1,1)) === 2.026918610688881
+    assert Dates.utc_to_gmst({{2017,1,1},{1,1,1}}) === 2.026918610688881
+    assert Dates.julian_to_gmst(Dates.jday({{2017,1,1},{1,1,1}})) === 2.026918610688881
   end
 
   test "initl returns correct response" do
@@ -185,4 +186,5 @@ defmodule SatelliteTest do
   test "parsed tle2 should return the correct checksum", state do
     assert state[:tle_2][:checksum] == 9
   end
+
 end
