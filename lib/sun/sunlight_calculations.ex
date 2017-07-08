@@ -12,7 +12,7 @@ defmodule Sun.SunlightCalculations do
 
     base_magnitude = if sunlit?, do: base_magnitude, else: 999.0
 
-    adjusted_magnitude = 
+    adjusted_magnitude =
       base_magnitude
       |> adjust_magnutide_for_low_elevation(satellite_elevation)
       |> adjust_magnitude_for_sunset(sun_position.elevation_radians)

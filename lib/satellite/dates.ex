@@ -19,15 +19,9 @@ defmodule Satellite.Dates do
         %{day: 15, hr: 20, minute: 56, mon: 12, second: 2.9997887981517124}
   """
   def epoch_time_to_mdhms(year, days) do
-    #TODO: The above doctest wasn't executing, and when it was turned on
-    # the values for second are now different than when this was originally
-    # written, which is concerning. Need to investigate if something 
-    # changed in the logic at some point.
 
     # Find month and day of month
     dayofyr = days |> Float.floor |> trunc
-    # {day_temp, month} = day_and_month(year, dayofyr) |> IO.inspect(label: "day and month")
-    # day = dayofyr - day_temp
     {day, month} = day_and_month(year, dayofyr)
 
     # Find minutes and seconds
@@ -57,15 +51,22 @@ defmodule Satellite.Dates do
       raise "There are only #{total_days_in_year} days in the year, " <>
             "but #{julian_day} was given!"
     end
-    
+
+    # start with the julian day, and iteratively subtract the days
+    # in each month. When the remaining days become less than a full month
+    # then we know we found the right month. 
     day_and_month(julian_day, months)
   end
 
   defp day_and_month(days_remaining, [days_this_month | _] = day_list) when days_remaining <= days_this_month do
+    # The count of remaining days isn't enough to fill the current month, so 
+    # we are done. The fractional days remaining become the days, and we
+    # count the remaining months to figure out which month we are in.
     {days_remaining, 12 - Enum.count(day_list) + 1}
   end
 
   defp day_and_month(days_remaining, [days_this_month | remaining_months]) do
+    # Subtract the days in the current month and move to the next month
     day_and_month(days_remaining - days_this_month, remaining_months)
   end
 
