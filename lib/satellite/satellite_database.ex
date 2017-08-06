@@ -156,6 +156,7 @@ defmodule Satellite.SatelliteDatabase do
   end
 
   defp cache_expired?({{_yr, _mth, _day}, {_hr, _min, _sec}} = last_modified_time, cache_ttl) do
+
     last_modified_time_seconds = :calendar.datetime_to_gregorian_seconds(last_modified_time)
 
     Logger.debug fn ->
@@ -174,7 +175,9 @@ defmodule Satellite.SatelliteDatabase do
       "Cache good until: #{inspect msg}"
     end
 
-    last_modified_time_seconds >= good_until
+    now = :calendar.datetime_to_gregorian_seconds(:calendar.universal_time)
+
+    now >= good_until
   end
 
   defp parse_tle_string(string) do
