@@ -7,8 +7,8 @@ defmodule Satellite.SGP4.Model do
   alias Satellite.{Constants, Dates, Math}
 
   def calculate(satrec, tsince) do
-    #temp4 = 1.5e-12
-    vkmpersec = Constants.earth_radius_semimajor * Constants.xke / 60.0
+    # temp4 = 1.5e-12
+    vkmpersec = Constants.earth_radius_semimajor() * Constants.xke() / 60.0
 
     satrec = %{satrec | t: tsince}
     satrec = %{satrec | error: 0}
@@ -25,25 +25,26 @@ defmodule Satellite.SGP4.Model do
     tempe = satrec.bstar * satrec.cc4 * satrec.t
     templ = satrec.t2cof * t2
 
-    {tempa, tempe, templ, mm, argpm} = if satrec.isimp === 1 do
-      {tempa, tempe, templ, mm, argpm}
-    else
-      delomg = satrec.omgcof * satrec.t
-      #  sgp4fix use mutliply for speed instead of pow
-      delmtemp = 1.0 + satrec.eta * :math.cos(xmdf)
-      delm = satrec.xmcof * (delmtemp * delmtemp * delmtemp - satrec.delmo)
-      temp = delomg + delm
-      mm_new = xmdf + temp
-      argpm_new = argpdf - temp
-      t3 = t2 * satrec.t
-      t4 = t3 * satrec.t
+    {tempa, tempe, templ, mm, argpm} =
+      if satrec.isimp === 1 do
+        {tempa, tempe, templ, mm, argpm}
+      else
+        delomg = satrec.omgcof * satrec.t
+        #  sgp4fix use mutliply for speed instead of pow
+        delmtemp = 1.0 + satrec.eta * :math.cos(xmdf)
+        delm = satrec.xmcof * (delmtemp * delmtemp * delmtemp - satrec.delmo)
+        temp = delomg + delm
+        mm_new = xmdf + temp
+        argpm_new = argpdf - temp
+        t3 = t2 * satrec.t
+        t4 = t3 * satrec.t
 
-      tempa_new = tempa - satrec.d2 * t2 - satrec.d3 * t3 - satrec.d4 * t4
-      tempe_new = tempe + satrec.bstar * satrec.cc5 * (:math.sin(mm_new) - satrec.sinmao)
-      templ_new = templ + satrec.t3cof * t3 + t4 * (satrec.t4cof + satrec.t * satrec.t5cof)
+        tempa_new = tempa - satrec.d2 * t2 - satrec.d3 * t3 - satrec.d4 * t4
+        tempe_new = tempe + satrec.bstar * satrec.cc5 * (:math.sin(mm_new) - satrec.sinmao)
+        templ_new = templ + satrec.t3cof * t3 + t4 * (satrec.t4cof + satrec.t * satrec.t5cof)
 
-      {tempa_new, tempe_new, templ_new, mm_new, argpm_new}
-    end
+        {tempa_new, tempe_new, templ_new, mm_new, argpm_new}
+      end
 
     nm = satrec.no
     em = satrec.ecco
@@ -60,8 +61,8 @@ defmodule Satellite.SGP4.Model do
       raise "Error 2"
     end
 
-    am = :math.pow((Constants.xke / nm), Constants.x2o3) * tempa * tempa
-    nm = Constants.xke / :math.pow(am, 1.5)
+    am = :math.pow(Constants.xke() / nm, Constants.x2o3()) * tempa * tempa
+    nm = Constants.xke() / :math.pow(am, 1.5)
     em = em - tempe
 
     #  fix tolerance for error recognition
@@ -77,13 +78,13 @@ defmodule Satellite.SGP4.Model do
 
     mm = mm + satrec.no * templ
     xlm = mm + argpm + nodem
-    #emsq = em * em
-    #temp = 1.0 - emsq
+    # emsq = em * em
+    # temp = 1.0 - emsq
 
-    nodem = Math.mod(nodem, Constants.two_pi)
-    argpm = Math.mod(argpm, Constants.two_pi)
-    xlm = Math.mod(xlm, Constants.two_pi)
-    mm = Math.mod(xlm - argpm - nodem, Constants.two_pi)
+    nodem = Math.mod(nodem, Constants.two_pi())
+    argpm = Math.mod(argpm, Constants.two_pi())
+    xlm = Math.mod(xlm, Constants.two_pi())
+    mm = Math.mod(xlm - argpm - nodem, Constants.two_pi())
 
     #  ----------------- compute extra mean quantities -------------
     sinim = :math.sin(inclm)
@@ -113,7 +114,7 @@ defmodule Satellite.SGP4.Model do
     xl = mp + argpp + nodep + temp * satrec.xlcof * axnl
 
     #  --------------------- solve kepler's equation ---------------
-    u = Math.mod((xl - nodep), Constants.two_pi)
+    u = Math.mod(xl - nodep, Constants.two_pi())
     eo1 = u
     tem5 = 9_999.9
     ktr = 1
@@ -144,26 +145,24 @@ defmodule Satellite.SGP4.Model do
     sin2u = (cosu + cosu) * sinu
     cos2u = 1.0 - 2.0 * sinu * sinu
     temp = 1.0 / pl
-    temp1 = 0.5 * Constants.j2 * temp
+    temp1 = 0.5 * Constants.j2() * temp
     temp2 = temp1 * temp
 
     #  -------------- update for short period periodics ------------
     satrec =
       if satrec.method === 'd' do
         cosisq = cosip * cosip
-        %{satrec | con41: 3.0 * cosisq - 1.0,
-          x1mth2: 1.0 - cosisq,
-          x7thm1: 7.0 * cosisq - 1.0}
+        %{satrec | con41: 3.0 * cosisq - 1.0, x1mth2: 1.0 - cosisq, x7thm1: 7.0 * cosisq - 1.0}
       else
         satrec
-    end
+      end
 
     mrt = rl * (1.0 - 1.5 * temp2 * betal * satrec.con41) + 0.5 * temp1 * satrec.x1mth2 * cos2u
     su = su - 0.25 * temp2 * satrec.x7thm1 * sin2u
     xnode = nodep + 1.5 * temp2 * cosip * sin2u
     xinc = xincp + 1.5 * temp2 * cosip * sinip * cos2u
-    mvt = rdotl - nm * temp1 * satrec.x1mth2 * sin2u / Constants.xke
-    rvdot = rvdotl + nm * temp1 * (satrec.x1mth2 * cos2u + 1.5 * satrec.con41) / Constants.xke
+    mvt = rdotl - nm * temp1 * satrec.x1mth2 * sin2u / Constants.xke()
+    rvdot = rvdotl + nm * temp1 * (satrec.x1mth2 * cos2u + 1.5 * satrec.con41) / Constants.xke()
 
     #  --------------------- orientation vectors -------------------
     sinsu = :math.sin(su)
@@ -183,9 +182,9 @@ defmodule Satellite.SGP4.Model do
 
     #  --------- position and velocity (in km and km/sec) ----------
     r = %{x: 0.0, y: 0.0, z: 0.0}
-    r = %{r | x: (mrt * ux) * Constants.earth_radius_semimajor}
-    r = %{r | y: (mrt * uy) * Constants.earth_radius_semimajor}
-    r = %{r | z: (mrt * uz) * Constants.earth_radius_semimajor}
+    r = %{r | x: mrt * ux * Constants.earth_radius_semimajor()}
+    r = %{r | y: mrt * uy * Constants.earth_radius_semimajor()}
+    r = %{r | z: mrt * uz * Constants.earth_radius_semimajor()}
 
     v = %{x: 0.0, y: 0.0, z: 0.0}
     v = %{v | x: (mvt * ux + rvdot * vx) * vkmpersec}
@@ -203,7 +202,8 @@ defmodule Satellite.SGP4.Model do
     %{satrec: satrec, position: r, velocity: v}
   end
 
-  defp iterate_kepler(tem5, ktr, eo1, axnl, aynl, u, _sineo1, _coseo1) when abs(tem5) > 1.0e-12 and ktr <= 10 do
+  defp iterate_kepler(tem5, ktr, eo1, axnl, aynl, u, _sineo1, _coseo1)
+       when abs(tem5) > 1.0e-12 and ktr <= 10 do
     sineo1 = :math.sin(eo1)
     coseo1 = :math.cos(eo1)
     tem5 = 1.0 - coseo1 * axnl - sineo1 * aynl
@@ -216,11 +216,11 @@ defmodule Satellite.SGP4.Model do
   defp iterate_kepler(_tem5, _ktr, _eo1, _axnl, _aynl, _u, sineo1, coseo1), do: {sineo1, coseo1}
 
   def propagate(satrec, {{_year, _month, _day}, {_hour, _minute, _second}} = input_date) do
-    #TODO: THIS NEEDS TO BE UTC TIME!!!
+    # TODO: THIS NEEDS TO BE UTC TIME!!!
 
-    #Return a position and velocity vector for a given date and time.
+    # Return a position and velocity vector for a given date and time.
     j = Dates.jday(input_date)
-    m = (j - satrec.jdsatepoch) * Constants.minutes_per_day
+    m = (j - satrec.jdsatepoch) * Constants.minutes_per_day()
     calculate(satrec, m)
   end
 end

@@ -1,10 +1,20 @@
 defmodule Satellite.Constants do
   defmacro pi, do: :math.pi()
   defmacro two_pi, do: 2 * pi()
-  defmacro earth_radius_semimajor, do: 6378.137       # in km
-  defmacro earth_radius_semiminor, do: 6356.7523142   # in km
-  defmacro mu, do: 398_600.5                          # in km3 / s2
-  defmacro xke, do: 60.0 / :math.sqrt(earth_radius_semimajor() * earth_radius_semimajor() * earth_radius_semimajor() / mu())
+  # in km
+  defmacro earth_radius_semimajor, do: 6378.137
+  # in km
+  defmacro earth_radius_semiminor, do: 6356.7523142
+  # in km3 / s2
+  defmacro mu, do: 398_600.5
+
+  defmacro xke,
+    do:
+      60.0 /
+        :math.sqrt(
+          earth_radius_semimajor() * earth_radius_semimajor() * earth_radius_semimajor() / mu()
+        )
+
   defmacro tumin, do: 1.0 / xke()
   defmacro x2o3, do: 2.0 / 3.0
   defmacro j2, do: 0.00108262998905

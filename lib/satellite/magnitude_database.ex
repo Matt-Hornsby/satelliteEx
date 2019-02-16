@@ -8,7 +8,7 @@ defmodule Satellite.MagnitudeDatabase do
   Starts the database.
   """
   def start_link do
-    Logger.info "Starting magnitude database"
+    Logger.info("Starting magnitude database")
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
@@ -45,21 +45,22 @@ defmodule Satellite.MagnitudeDatabase do
   def init(:ok) do
     magnitudes =
       :satellite
-      |> :code.priv_dir
+      |> :code.priv_dir()
       |> Path.join("satmag.txt")
-      |> File.stream!
+      |> File.stream!()
       |> parse_satmag_stream
 
     {:ok, magnitudes}
   end
 
   def handle_call({:all_satellites}, _from, magnitudes) do
-    satellites = magnitudes |> Enum.map(&(&1.norad_id))
+    satellites = magnitudes |> Enum.map(& &1.norad_id)
     {:reply, satellites, magnitudes}
   end
 
   def handle_call({:lookup, norad_id}, _from, magnitudes) do
     satellite = magnitudes |> Enum.filter(&(&1.norad_id == norad_id)) |> Enum.at(0)
+
     if satellite == nil do
       {:reply, {:error, "Not found"}, magnitudes}
     else
@@ -73,18 +74,17 @@ defmodule Satellite.MagnitudeDatabase do
 
   defp parse_magnitude(magnitude_line) do
     <<
-      norad_id     :: binary-size(5),
+      norad_id::binary-size(5),
       0x20,
-      magnitude    :: binary
+      magnitude::binary
     >> = magnitude_line
 
     converted_norad_id = String.to_integer(norad_id)
     {converted_magnitude, _} = Float.parse(magnitude)
 
     %{
-      norad_id: converted_norad_id ,
+      norad_id: converted_norad_id,
       magnitude: converted_magnitude
     }
   end
-
 end

@@ -1,6 +1,6 @@
 defmodule Satellite do
   alias Observer.KnownLocations
-  alias Satellite.{SatelliteDatabase, Passes}
+  alias Satellite.{Passes, SatelliteDatabase}
   #
   # Public API
   #
@@ -26,7 +26,7 @@ defmodule Satellite do
   #
 
   def find_next_iss_pass_for_seattle do
-    next_pass(iss_satrec(), :calendar.universal_time, seattle_observer())
+    next_pass(iss_satrec(), :calendar.universal_time(), seattle_observer())
   end
 
   def locate_current_iss_position_for_seattle do
@@ -41,7 +41,6 @@ defmodule Satellite do
     next_pass(iss_satrec(), start_datetime, observer)
   end
 
-  defp seattle_observer, do: KnownLocations.seattle
+  defp seattle_observer, do: KnownLocations.seattle()
   defp iss_satrec, do: SatelliteDatabase.lookup(25_544)
-
 end

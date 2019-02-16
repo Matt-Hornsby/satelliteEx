@@ -6,7 +6,8 @@ defmodule Satellite.Application do
 
     children = [
       worker(Satellite.MagnitudeDatabase, []),
-      worker(Satellite.SatelliteDatabase, []), # <-- Must start after MagnitudeDatabase
+      # <-- Must start after MagnitudeDatabase
+      worker(Satellite.SatelliteDatabase, [])
     ]
 
     opts = [strategy: :one_for_one, name: Satellite.Supervisor]
