@@ -48,10 +48,10 @@ defmodule Satellite.Passes do
       max_datetime = :calendar.gregorian_seconds_to_datetime(max_seconds)
       max_prediction = predict_for(max_datetime, observer, satrec)
 
-      best_part_of_pass = brightest_part_of_pass(
+      brightest_part_of_pass = brightest_part_of_pass(
           pass.start_of_pass.datetime, pass.end_of_pass.datetime, observer, satrec, start_prediction)
 
-      visibility = visibility(best_part_of_pass.sun_position.elevation_radians, best_part_of_pass.satellite_magnitude)
+      visibility = visibility(brightest_part_of_pass.sun_position.elevation_radians, brightest_part_of_pass.satellite_magnitude)
 
       %{
         start_time: pass.start_of_pass.datetime,
@@ -60,7 +60,7 @@ defmodule Satellite.Passes do
         end_azimuth: end_prediction.azimuth_in_degrees,
         start_magnitude: start_prediction.satellite_magnitude,
         end_magnitude: end_prediction.satellite_magnitude,
-        best_part_of_pass: best_part_of_pass,
+        brightest_part_of_pass: brightest_part_of_pass,
         visibility: visibility,
 
         # Added:

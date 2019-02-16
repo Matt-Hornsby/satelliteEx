@@ -1,5 +1,5 @@
 defmodule Satellite.Math do
-  def mod(numer, denom), do: numer - trunc(numer/denom) * denom
+  def mod(numer, denom), do: numer - trunc(numer / denom) * denom
 
   def string_to_float(" " <> rest), do: string_to_float(rest)           # trim spaces
   def string_to_float("-." <> rest), do: string_to_float("-0." <> rest) # prepend with 0, negative case

@@ -104,6 +104,6 @@ The pass details contain a lot of information. In addition to general informatio
 iex> next_pass.aos
 iex> next_pass.los
 iex> next_pass.max
-iex> next_pass.best_part_of_pass
+iex> next_pass.brightest_part_of_pass
 ...lots of stuff
 ```

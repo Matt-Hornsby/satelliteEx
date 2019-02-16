@@ -39,7 +39,7 @@ defmodule Satellite.CoordinateTransforms do
     height = geodetic_coords.height_km
     a = Constants.earth_radius_semimajor
     b = Constants.earth_radius_semiminor
-    f = (a - b)/a
+    f = (a - b) / a
     e2 = ((2 * f) - (f * f))
     normal = a / :math.sqrt(1 - (e2 * (:math.sin(latitude) * :math.sin(latitude))))
 
@@ -55,7 +55,7 @@ defmodule Satellite.CoordinateTransforms do
     a   = Constants.earth_radius_semimajor
     b   = Constants.earth_radius_semiminor
     r   = :math.sqrt((eciCoords.x * eciCoords.x) + (eciCoords.y * eciCoords.y))
-    f   = (a - b)/a
+    f   = (a - b) / a
     e2  = ((2 * f) - (f * f))
     longitude = :math.atan2(eciCoords.y, eciCoords.x) - gmst
     # Adding to get sign correct:

@@ -3,10 +3,10 @@ defmodule Satellite.Mixfile do
 
   def project do
     [app: :satellite,
-     version: "0.1.0",
-     elixir: "~> 1.4",
+     version: "0.1.1",
+     elixir: "~> 1.8",
      test_coverage: [tool: ExCoveralls],
-     preferred_cli_env: ["coveralls": :test, "coveralls.detail": :test, "coveralls.post": :test, "coveralls.html": :test],
+     preferred_cli_env: [coveralls: :test, "coveralls.detail": :test, "coveralls.post": :test, "coveralls.html": :test],
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      deps: deps()]
@@ -33,8 +33,8 @@ defmodule Satellite.Mixfile do
   defp deps do
     [
       {:ex_doc, "~> 0.12"},
-      {:credo, "~> 0.8", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.7", only: :test}
+      {:credo, "~> 1.0.2", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.10", only: :test}
     ]
   end
 end
