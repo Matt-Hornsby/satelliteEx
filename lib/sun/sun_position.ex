@@ -1,4 +1,7 @@
 defmodule Sun.SunPosition do
+  @moduledoc """
+  Calculate the position of the sun
+  """
   require Satellite.Constants
   alias Satellite.{Constants, Dates}
 
@@ -56,7 +59,7 @@ defmodule Sun.SunPosition do
   @doc """
   Approximates the sun's solar coordinates on a given julian date
   """
-  def calculate_orbital_coordinates_at(julian_date) do
+  defp calculate_orbital_coordinates_at(julian_date) do
     # position = %{ra: 0.0, declination: 0.0}
     # 2,451,545 is the julian date on 1/1/2000
     d0 = julian_date - 2_451_545
