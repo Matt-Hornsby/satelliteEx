@@ -44,7 +44,7 @@ defmodule Satellite.MagnitudeDatabase do
 
   def init(:ok) do
     magnitudes =
-      :satellite
+      :satellite_ex
       |> :code.priv_dir()
       |> Path.join("satmag.txt")
       |> File.stream!()

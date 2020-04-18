@@ -6,6 +6,17 @@ This is a satellite prediction library that provides satellite pass times for an
 
 **Amsat** - satellites of interest to radio amateurs. Licensed ham radio operators can make contacts with others via these satellites.
 
+## Installation (via Hex)
+The SatelliteEx package can be installed by adding `:satellite_ex` to your list of dependencies in `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:satellite_ex, "~> 0.1.2"}
+  ]
+end
+```
+
 ## Examples - Finding & setting your location
 
 Most of the examples in this document require a known observer location. Several of these are provided for convenience in the Observer.KnownLocation module. For example:

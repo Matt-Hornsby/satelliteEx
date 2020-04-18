@@ -3,8 +3,8 @@ defmodule Satellite.Mixfile do
 
   def project do
     [
-      app: :satellite,
-      version: "0.1.1",
+      app: :satellite_ex,
+      version: "0.1.2",
       elixir: "~> 1.8",
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
@@ -15,31 +15,35 @@ defmodule Satellite.Mixfile do
       ],
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      description: description(),
+      package: package(),
+      name: "satellite_ex",
+      source_url: "https://github.com/Matt-Hornsby/satelliteEx"
     ]
   end
 
-  # Configuration for the OTP application
-  #
-  # Type "mix help compile.app" for more information
   def application do
     [applications: [:logger], mod: {Satellite.Application, []}]
   end
 
-  # Dependencies can be Hex packages:
-  #
-  #   {:mydep, "~> 0.3.0"}
-  #
-  # Or git/path repositories:
-  #
-  #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
-  #
-  # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:ex_doc, "~> 0.12"},
+      {:ex_doc, "~> 0.19"},
       {:credo, "~> 1.0.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.10", only: :test}
+    ]
+  end
+
+  defp description() do
+    "This is a satellite prediction library that provides satellite pass times for any given time and location."
+  end
+
+  defp package() do
+    [
+      name: "satellite_ex",
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/Matt-Hornsby/satelliteEx"}
     ]
   end
 end

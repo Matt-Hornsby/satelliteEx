@@ -110,7 +110,12 @@ defmodule Satellite.SatelliteDatabase do
     # We're going to try to use a locally cached file, and if it's too old or doesn't exist
     # then we try to get it from the internets.
 
-    file_path = "priv/#{filename}.dat"
+    #file_path = "priv/#{filename}.dat"
+
+    file_path =
+      :satellite_ex
+      |> :code.priv_dir()
+      |> Path.join("#{filename}.dat")
 
     Logger.debug(fn -> "Looking for local file #{file_path}" end)
     cache_status = cache_status(file_path, cache_ttl)

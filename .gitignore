@@ -18,3 +18,5 @@ erl_crash.dump
 
 # Don't track cached satellite data files
 /priv/*.dat
+
+/.elixir_ls/
