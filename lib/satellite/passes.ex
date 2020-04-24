@@ -180,6 +180,7 @@ defmodule Satellite.Passes do
   defp brightest_part_of_pass(start_of_pass, end_of_pass, observer, satrec, best_pass)
        when start_of_pass < end_of_pass do
     current_part_of_pass = predict_for(start_of_pass, observer, satrec)
+
     # IO.inspect start_of_pass
     # IO.inspect "elevation: #{current_part_of_pass.elevation_in_degrees} min_wp: #{current_part_of_pass.min_wp} satellite_magnitude:#{current_part_of_pass.satellite_magnitude} sun_elevation:#{current_part_of_pass.sun_position.elevation_radians}"
 
@@ -316,5 +317,4 @@ defmodule Satellite.Passes do
     |> Kernel.+(seconds)
     |> :calendar.gregorian_seconds_to_datetime()
   end
-
 end

@@ -78,6 +78,7 @@ defmodule Satellite.SGP4.Model do
 
     mm = mm + satrec.no * templ
     xlm = mm + argpm + nodem
+
     # emsq = em * em
     # temp = 1.0 - emsq
 

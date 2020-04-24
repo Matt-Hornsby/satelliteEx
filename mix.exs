@@ -29,8 +29,8 @@ defmodule Satellite.Mixfile do
 
   defp deps do
     [
-      {:ex_doc, "~> 0.19"},
-      {:credo, "~> 1.0.2", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.21", only: :dev},
+      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.10", only: :test}
     ]
   end

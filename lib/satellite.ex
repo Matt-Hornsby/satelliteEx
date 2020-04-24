@@ -1,6 +1,7 @@
 defmodule Satellite do
   alias Observer.KnownLocations
   alias Satellite.{Passes, SatelliteDatabase}
+
   #
   # Public API
   #

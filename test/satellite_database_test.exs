@@ -7,6 +7,6 @@ defmodule SatelliteDatabaseTest do
   end
 
   test "should_be_able_to_search_by_name" do
-    assert Satellite.SatelliteDatabase.lookup("PHOENIX") != nil
+    assert Satellite.SatelliteDatabase.lookup("ISS (ZARYA)") != nil
   end
 end
