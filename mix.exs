@@ -4,7 +4,7 @@ defmodule Satellite.Mixfile do
   def project do
     [
       app: :satellite_ex,
-      version: "0.1.2",
+      version: "0.1.3",
       elixir: "~> 1.8",
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
