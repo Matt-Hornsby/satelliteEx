@@ -40,6 +40,14 @@ defmodule Satellite.MagnitudeDatabase do
     GenServer.call(__MODULE__, {:all_satellites})
   end
 
+  def list do
+    GenServer.call(__MODULE__, {:list})
+  end
+
+  def get_magnitudes do
+    GenServer.call(__MODULE__, {:get_magnitudes})
+  end
+
   ## Server Callbacks
 
   def init(:ok) do
@@ -50,21 +58,33 @@ defmodule Satellite.MagnitudeDatabase do
       |> File.stream!()
       |> parse_satmag_stream
 
-    {:ok, magnitudes}
+    map =
+      Enum.reduce(magnitudes, %{}, fn x, acc ->
+        Map.put(acc, x.norad_id, x.magnitude)
+      end)
+
+    {:ok, map}
+  end
+
+  def handle_call({:list}, _from, magnitudes) do
+    {:reply, magnitudes, magnitudes}
+  end
+
+  def handle_call({:get_magnitudes}, _from, magnitudes) do
+    {:reply, magnitudes, magnitudes}
   end
 
   def handle_call({:all_satellites}, _from, magnitudes) do
-    satellites = magnitudes |> Enum.map(& &1.norad_id)
-    {:reply, satellites, magnitudes}
+    {:reply, Map.keys(magnitudes), magnitudes}
   end
 
   def handle_call({:lookup, norad_id}, _from, magnitudes) do
-    satellite = magnitudes |> Enum.filter(&(&1.norad_id == norad_id)) |> Enum.at(0)
+    magnitude = magnitudes[norad_id]
 
-    if satellite == nil do
+    if magnitude == nil do
       {:reply, {:error, "Not found"}, magnitudes}
     else
-      {:reply, {:ok, satellite.magnitude}, magnitudes}
+      {:reply, {:ok, magnitude}, magnitudes}
     end
   end
 
