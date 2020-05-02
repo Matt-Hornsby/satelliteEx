@@ -26,6 +26,11 @@ defmodule Satellite.SatelliteDatabase do
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
+  def refresh do
+    pid = GenServer.whereis(__MODULE__)
+    send(pid, :update_tle)
+  end
+
   def lookup(satellite_name) when is_binary(satellite_name) do
     GenServer.call(__MODULE__, {:lookup, satellite_name})
   end
@@ -65,7 +70,7 @@ defmodule Satellite.SatelliteDatabase do
     {:reply, Map.values(satellites), satellites}
   end
 
-  def handle_info(:update_tle, state) do
+  def handle_info(:update_tle, _state) do
     Logger.info("Forcing update of all TLEs")
     {:ok, satellites} = fetch_satellites(0)
     # Reschedule
